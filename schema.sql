@@ -2,14 +2,16 @@
 CREATE OR REPLACE FUNCTION interviews_textarrays_update_trigger()
     RETURNS trigger AS $$
 begin
-    new.tsperguntas := to_tsvector('pg_catalog.portuguese', array_to_string(new.perguntas, chr(10)));
-    new.tsrespostas := to_tsvector('pg_catalog.portuguese', array_to_string(new.respostas, chr(10)));
+    new.tsperguntas := to_tsvector('pg_catalog.portuguese',
+                                    array_to_string(new.perguntas, chr(10)));
+    new.tsrespostas := to_tsvector('pg_catalog.portuguese',
+                                    array_to_string(new.respostas, chr(10)));
     return new;
 end
 $$ LANGUAGE plpgsql;
 
 -- Table: public.interviews
-
+-- TODO: Create foreign key referencing other tables
 -- DROP TABLE public.interviews;
 
 CREATE TABLE public.interviews
@@ -77,4 +79,5 @@ CREATE TRIGGER interviews_trigg_tstexto
     BEFORE INSERT OR UPDATE 
     ON public.interviews
     FOR EACH ROW
-    EXECUTE PROCEDURE tsvector_update_trigger('tstexto', 'pg_catalog.portuguese', 'texto');
+    EXECUTE PROCEDURE
+        tsvector_update_trigger('tstexto', 'pg_catalog.portuguese', 'texto');
