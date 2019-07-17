@@ -138,8 +138,8 @@ for idx in json_patterns['athlete-name']:
 # redundant information
 questionset = set(['USP'])
 for idx in json_patterns['one-one-abbr']:
-    if ('USP – ' in json_arr[idx]['text'][1]
-            or 'USP – ' in json_arr[idx]['text'][2]):
+    if ('USP – ' in json_arr[idx]['text'][1] or
+            'USP – ' in json_arr[idx]['text'][2]):
         del json_arr[idx]['text'][0]
         json_arr[idx]['nonbold'] = []
         for idx2, s in enumerate(json_arr[idx]['text']):
