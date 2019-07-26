@@ -38,9 +38,9 @@ api.add_resource(routes.InterviewSearch, '/interviews/<string:search_string>')
 api.add_resource(routes.InterviewSearchText,
                  '/interviews/<string:search_string>/text')
 api.add_resource(routes.InterviewSearchQuestions,
-                 '/interviews/<string:search_string>/answers')
-api.add_resource(routes.InterviewSearchAnswers,
                  '/interviews/<string:search_string>/questions')
+api.add_resource(routes.InterviewSearchAnswers,
+                 '/interviews/<string:search_string>/answers')
 
 # Testing authentication
 
