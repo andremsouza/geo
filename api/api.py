@@ -2,13 +2,13 @@ import flask
 import flask_restful
 import werkzeug.routing
 import routes
-# from getpass import getpass
+# import getpass
 
 # Defining int_list for batch GET requests
 
 
 class IntListConverter(werkzeug.routing.BaseConverter):
-    regex = r'\d+(?:,\d+)*,?'
+    regex = r'\d+(?:,\d+)*'
 
     def to_python(self, value):
         return [int(i) for i in value.split(',')]
@@ -34,6 +34,13 @@ api.add_resource(routes.InterviewAnyQuestions,
                  '/interviews/<int_list:ids>/questions')
 api.add_resource(routes.InterviewAnyAnswers,
                  '/interviews/<int_list:ids>/answers')
+api.add_resource(routes.InterviewSearch, '/interviews/<string:search_string>')
+api.add_resource(routes.InterviewSearchText,
+                 '/interviews/<string:search_string>/text')
+api.add_resource(routes.InterviewSearchQuestions,
+                 '/interviews/<string:search_string>/answers')
+api.add_resource(routes.InterviewSearchAnswers,
+                 '/interviews/<string:search_string>/questions')
 
 # Testing authentication
 

@@ -186,3 +186,99 @@ class InterviewAnyAnswers(flask_restful.Resource):
         except psycopg2.Error:
             flask.abort(500)
         return data
+
+
+class InterviewSearch(flask_restful.Resource):
+    def get(self, search_string):
+        try:
+            conn = dbconnect()
+            data = {}
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT id, text, questions, answers FROM interviews
+                        WHERE tstext @@
+                            phraseto_tsquery('portuguese', %(search_string)s)
+                        ORDER BY id;""", {"search_string": search_string})
+                data['search_string'] = search_string
+                data['row_count'] = cur.rowcount
+                data['column_names'] = [desc[0] for desc in cur.description]
+                data['rows'] = cur.fetchall()
+                cur.close()
+            conn.close()
+        except Exception:
+            flask.abort(500)
+        except psycopg2.Error:
+            flask.abort(500)
+        return data
+
+
+class InterviewSearchText(flask_restful.Resource):
+    def get(self, search_string):
+        try:
+            conn = dbconnect()
+            data = {}
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT id, text FROM interviews
+                        WHERE tstext @@
+                            phraseto_tsquery('portuguese', %(search_string)s)
+                        ORDER BY id;""", {"search_string": search_string})
+                data['search_string'] = search_string
+                data['row_count'] = cur.rowcount
+                data['column_names'] = [desc[0] for desc in cur.description]
+                data['rows'] = cur.fetchall()
+                cur.close()
+            conn.close()
+        except Exception:
+            flask.abort(500)
+        except psycopg2.Error:
+            flask.abort(500)
+        return data
+
+
+class InterviewSearchQuestions(flask_restful.Resource):
+    def get(self, search_string):
+        try:
+            conn = dbconnect()
+            data = {}
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT id, questions FROM interviews
+                        WHERE tstext @@
+                            phraseto_tsquery('portuguese', %(search_string)s)
+                        ORDER BY id;""", {"search_string": search_string})
+                data['search_string'] = search_string
+                data['row_count'] = cur.rowcount
+                data['column_names'] = [desc[0] for desc in cur.description]
+                data['rows'] = cur.fetchall()
+                cur.close()
+            conn.close()
+        except Exception:
+            flask.abort(500)
+        except psycopg2.Error:
+            flask.abort(500)
+        return data
+
+
+class InterviewSearchAnswers(flask_restful.Resource):
+    def get(self, search_string):
+        try:
+            conn = dbconnect()
+            data = {}
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT id, answers FROM interviews
+                        WHERE tstext @@
+                            phraseto_tsquery('portuguese', %(search_string)s)
+                        ORDER BY id;""", {"search_string": search_string})
+                data['search_string'] = search_string
+                data['row_count'] = cur.rowcount
+                data['column_names'] = [desc[0] for desc in cur.description]
+                data['rows'] = cur.fetchall()
+                cur.close()
+            conn.close()
+        except Exception:
+            flask.abort(500)
+        except psycopg2.Error:
+            flask.abort(500)
+        return data
