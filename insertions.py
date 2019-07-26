@@ -3,10 +3,11 @@
 
 # %%
 import psycopg2
-import getpass
+# import getpass
 import os
 import docx2json
 import json
+import re
 import nltk.tokenize
 import nltk.corpus
 import nltk.stem
@@ -18,11 +19,16 @@ nltk.download('rslp')
 # ## Setting up database connection
 
 # %%
-conn = psycopg2.connect(
-    "host=%s port=%s dbname=%s user=%s password=%s" %
-    ((str(input("Host: "))).strip(), (str(input("Port: "))).strip(),
-     (str(input("DatabaseName: "))).strip(),
-     (str(input("User: "))).strip(), getpass.getpass("Password: ")))
+# conn = psycopg2.connect(
+#     "host=%s port=%s dbname=%s user=%s password=%s" %
+#     ((str(input("Host: "))).strip(), (str(input("Port: "))).strip(),
+#      (str(input("DatabaseName: "))).strip(),
+#      (str(input("User: "))).strip(), getpass.getpass("Password: ")))
+PASSWORD = None
+conn = psycopg2.connect(host='localhost',
+                        dbname='icgeo',
+                        user='andre',
+                        password=PASSWORD)
 cur = conn.cursor()
 cur.close()
 
@@ -228,17 +234,44 @@ for idx in json_patterns['all-nonbold-names']:
 interviews_split = []
 tokens = []
 for idx, x in enumerate(json_arr):
+    # Tokenize using NLTK
     interviews_split.append({
-        'text':
-        nltk.tokenize.word_tokenize('\n'.join(x['text']).lower(),
-                                    language='portuguese'),
-        'q':
-        nltk.tokenize.word_tokenize('\n'.join(x['bold']).lower(),
-                                    language='portuguese'),
-        'a':
-        nltk.tokenize.word_tokenize('\n'.join(x['nonbold']).lower(),
-                                    language='portuguese')
+        'text': [
+            y for x in [
+                nltk.tokenize.word_tokenize(i, language='portuguese')
+                for i in nltk.tokenize.sent_tokenize(
+                    '\n'.join(x['text']).lower(), language='portuguese')
+            ] for y in x
+        ],
+        'q': [
+            y for x in [
+                nltk.tokenize.word_tokenize(i, language='portuguese')
+                for i in nltk.tokenize.sent_tokenize(
+                    '\n'.join(x['bold']).lower(), language='portuguese')
+            ] for y in x
+        ],
+        'a': [
+            y for x in [
+                nltk.tokenize.word_tokenize(i, language='portuguese')
+                for i in nltk.tokenize.sent_tokenize(
+                    '\n'.join(x['nonbold']).lower(), language='portuguese')
+            ] for y in x
+        ],
     })
+
+    # Removing tokens with trailing dots.
+    dot_re = r'^[^\.]+\.$'
+    for idx2, tok in enumerate(interviews_split[-1]['text']):
+        if re.match(dot_re, tok):
+            interviews_split[-1]['text'][idx2] = tok[:-1]
+    for idx2, tok in enumerate(interviews_split[-1]['q']):
+        if re.match(dot_re, tok):
+            interviews_split[-1]['q'][idx2] = tok[:-1]
+    for idx2, tok in enumerate(interviews_split[-1]['a']):
+        if re.match(dot_re, tok):
+            interviews_split[-1]['a'][idx2] = tok[:-1]
+
+    # Generating token set, removing stopwords
     tokens.append({
         'text':
         set(interviews_split[idx]['text']) -
@@ -295,9 +328,9 @@ for idx, x in enumerate(interviews_split):
 cur = conn.cursor()
 for idx, data in enumerate(json_arr):
     cur.execute(
-        """INSERT INTO interviews (id, texto, perguntas, respostas)
+        """INSERT INTO interviews (id, text, questions, answers)
             VALUES (%(id)s, %(texto)s, %(perguntas)s, %(respostas)s)
-            ON CONFLICT DO NOTHING;""", {
+            ON CONFLICT DO UPDATE;""", {
             'id': input_files_ids[idx],
             'texto': '\n'.join(data['text']),
             'perguntas': data['bold'],
@@ -313,7 +346,7 @@ cur.close()
 
 # %%
 cur = conn.cursor()
-cur.execute("""SELECT ID, tsvector_to_array(TO_TSVECTOR('portuguese', texto))
+cur.execute("""SELECT ID, tsvector_to_array(TO_TSVECTOR('portuguese', text))
         FROM interviews
         ORDER BY ID ASC;""")
 dbout = cur.fetchall()
