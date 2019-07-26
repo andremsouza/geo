@@ -2,10 +2,10 @@
 CREATE OR REPLACE FUNCTION interviews_textarrays_update_trigger()
     RETURNS trigger AS $$
 begin
-    new.tsperguntas := to_tsvector('pg_catalog.portuguese',
-                                    array_to_string(new.perguntas, chr(10)));
-    new.tsrespostas := to_tsvector('pg_catalog.portuguese',
-                                    array_to_string(new.respostas, chr(10)));
+    new.tsquestions := to_tsvector('pg_catalog.portuguese',
+                                    array_to_string(new.questions, chr(10)));
+    new.tsanswers := to_tsvector('pg_catalog.portuguese',
+                                    array_to_string(new.answers, chr(10)));
     return new;
 end
 $$ LANGUAGE plpgsql;
@@ -17,12 +17,12 @@ $$ LANGUAGE plpgsql;
 CREATE TABLE public.interviews
 (
     id integer NOT NULL,
-    texto text COLLATE pg_catalog."default" NOT NULL,
-    perguntas text[] COLLATE pg_catalog."default" NOT NULL,
-    respostas text[] COLLATE pg_catalog."default" NOT NULL,
-    tstexto tsvector NOT NULL,
-    tsperguntas tsvector NOT NULL,
-    tsrespostas tsvector NOT NULL,
+    text text COLLATE pg_catalog."default" NOT NULL,
+    questions text[] COLLATE pg_catalog."default" NOT NULL,
+    answers text[] COLLATE pg_catalog."default" NOT NULL,
+    tstext tsvector NOT NULL,
+    tsquestions tsvector NOT NULL,
+    tsanswers tsvector NOT NULL,
     CONSTRAINT interviews_pkey PRIMARY KEY (id),
     CONSTRAINT interviews_id_check CHECK (id > 0)
 )
@@ -34,31 +34,31 @@ TABLESPACE pg_default;
 ALTER TABLE public.interviews
     OWNER to andre;
 
--- Index: interviews_idx_tsperguntas
+-- Index: interviews_idx_tsquestions
 
--- DROP INDEX public.interviews_idx_tsperguntas;
+-- DROP INDEX public.interviews_idx_tsquestions;
 
-CREATE INDEX interviews_idx_tsperguntas
+CREATE INDEX interviews_idx_tsquestions
     ON public.interviews USING gin
-    (tsperguntas)
+    (tsquestions)
     TABLESPACE pg_default;
 
--- Index: interviews_idx_tsrespostas
+-- Index: interviews_idx_tsanswers
 
--- DROP INDEX public.interviews_idx_tsrespostas;
+-- DROP INDEX public.interviews_idx_tsanswers;
 
-CREATE INDEX interviews_idx_tsrespostas
+CREATE INDEX interviews_idx_tsanswers
     ON public.interviews USING gin
-    (tsrespostas)
+    (tsanswers)
     TABLESPACE pg_default;
 
--- Index: interviews_idx_tstexto
+-- Index: interviews_idx_tstext
 
--- DROP INDEX public.interviews_idx_tstexto;
+-- DROP INDEX public.interviews_idx_tstext;
 
-CREATE INDEX interviews_idx_tstexto
+CREATE INDEX interviews_idx_tstext
     ON public.interviews USING gin
-    (tstexto)
+    (tstext)
     TABLESPACE pg_default;
 
 -- Trigger: interviews_trigg_textarrays
@@ -71,13 +71,13 @@ CREATE TRIGGER interviews_trigg_textarrays
     FOR EACH ROW
     EXECUTE PROCEDURE public.interviews_textarrays_update_trigger();
 
--- Trigger: interviews_trigg_tstexto
+-- Trigger: interviews_trigg_tstext
 
--- DROP TRIGGER interviews_trigg_tstexto ON public.interviews;
+-- DROP TRIGGER interviews_trigg_tstext ON public.interviews;
 
-CREATE TRIGGER interviews_trigg_tstexto
+CREATE TRIGGER interviews_trigg_tstext
     BEFORE INSERT OR UPDATE 
     ON public.interviews
     FOR EACH ROW
     EXECUTE PROCEDURE
-        tsvector_update_trigger('tstexto', 'pg_catalog.portuguese', 'texto');
+        tsvector_update_trigger('tstext', 'pg_catalog.portuguese', 'text');
