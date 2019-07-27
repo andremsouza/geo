@@ -17,6 +17,7 @@ nltk.download('rslp')
 
 # %% [markdown]
 # ## Setting up database connection
+PASSWORD = None
 
 # %%
 # conn = psycopg2.connect(
@@ -24,7 +25,6 @@ nltk.download('rslp')
 #     ((str(input("Host: "))).strip(), (str(input("Port: "))).strip(),
 #      (str(input("DatabaseName: "))).strip(),
 #      (str(input("User: "))).strip(), getpass.getpass("Password: ")))
-PASSWORD = None
 conn = psycopg2.connect(host='localhost',
                         dbname='icgeo',
                         user='andre',
@@ -243,14 +243,14 @@ for idx, x in enumerate(json_arr):
                     '\n'.join(x['text']).lower(), language='portuguese')
             ] for y in x
         ],
-        'q': [
+        'questions': [
             y for x in [
                 nltk.tokenize.word_tokenize(i, language='portuguese')
                 for i in nltk.tokenize.sent_tokenize(
                     '\n'.join(x['bold']).lower(), language='portuguese')
             ] for y in x
         ],
-        'a': [
+        'answers': [
             y for x in [
                 nltk.tokenize.word_tokenize(i, language='portuguese')
                 for i in nltk.tokenize.sent_tokenize(
@@ -264,23 +264,23 @@ for idx, x in enumerate(json_arr):
     for idx2, tok in enumerate(interviews_split[-1]['text']):
         if re.match(dot_re, tok):
             interviews_split[-1]['text'][idx2] = tok[:-1]
-    for idx2, tok in enumerate(interviews_split[-1]['q']):
+    for idx2, tok in enumerate(interviews_split[-1]['questions']):
         if re.match(dot_re, tok):
-            interviews_split[-1]['q'][idx2] = tok[:-1]
-    for idx2, tok in enumerate(interviews_split[-1]['a']):
+            interviews_split[-1]['questions'][idx2] = tok[:-1]
+    for idx2, tok in enumerate(interviews_split[-1]['answers']):
         if re.match(dot_re, tok):
-            interviews_split[-1]['a'][idx2] = tok[:-1]
+            interviews_split[-1]['answers'][idx2] = tok[:-1]
 
     # Generating token set, removing stopwords
     tokens.append({
         'text':
         set(interviews_split[idx]['text']) -
         set(nltk.corpus.stopwords.words('portuguese')),
-        'q':
-        set(interviews_split[idx]['q']) -
+        'questions':
+        set(interviews_split[idx]['questions']) -
         set(nltk.corpus.stopwords.words('portuguese')),
-        'a':
-        set(interviews_split[idx]['a']) -
+        'answers':
+        set(interviews_split[idx]['answers']) -
         set(nltk.corpus.stopwords.words('portuguese'))
     })
 
@@ -292,52 +292,58 @@ metas = []
 for idx, x in enumerate(interviews_split):
     meta = {
         'text': {
-            'bag': {},
-            'bag_stemmed': {}
+            'bow': {},
+            'bow_stemmed': {}
         },
-        'q': {
-            'bag': {},
-            'bag_stemmed': {}
+        'questions': {
+            'bow': {},
+            'bow_stemmed': {}
         },
-        'a': {
-            'bag': {},
-            'bag_stemmed': {}
+        'answers': {
+            'bow': {},
+            'bow_stemmed': {}
         }
     }
     for token in tokens[idx]['text']:
-        meta['text']['bag'][token] = x['text'].count(token)
-        meta['text']['bag_stemmed'][
-            stemmer.stem(token)] = meta['text']['bag_stemmed'].get(
-                stemmer.stem(token), 0) + meta['text']['bag'][token]
-    for token in tokens[idx]['q']:
-        meta['q']['bag'][token] = x['q'].count(token)
-        meta['q']['bag_stemmed'][
-            stemmer.stem(token)] = meta['q']['bag_stemmed'].get(
-                stemmer.stem(token), 0) + meta['q']['bag'][token]
-    for token in tokens[idx]['a']:
-        meta['a']['bag'][token] = x['a'].count(token)
-        meta['a']['bag_stemmed'][
-            stemmer.stem(token)] = meta['a']['bag_stemmed'].get(
-                stemmer.stem(token), 0) + meta['a']['bag'][token]
+        meta['text']['bow'][token] = x['text'].count(token)
+        meta['text']['bow_stemmed'][
+            stemmer.stem(token)] = meta['text']['bow_stemmed'].get(
+                stemmer.stem(token), 0) + meta['text']['bow'][token]
+    for token in tokens[idx]['questions']:
+        meta['questions']['bow'][token] = x['questions'].count(token)
+        meta['questions']['bow_stemmed'][stemmer.stem(
+            token)] = meta['questions']['bow_stemmed'].get(
+                stemmer.stem(token), 0) + meta['questions']['bow'][token]
+    for token in tokens[idx]['answers']:
+        meta['answers']['bow'][token] = x['answers'].count(token)
+        meta['answers']['bow_stemmed'][stemmer.stem(
+            token)] = meta['answers']['bow_stemmed'].get(
+                stemmer.stem(token), 0) + meta['answers']['bow'][token]
     metas.append(meta)
 
 # %% [markdown]
 # ## Insertion of data into the database
 
 # %%
-cur = conn.cursor()
-for idx, data in enumerate(json_arr):
-    cur.execute(
-        """INSERT INTO interviews (id, text, questions, answers)
-            VALUES (%(id)s, %(texto)s, %(perguntas)s, %(respostas)s)
-            ON CONFLICT DO UPDATE;""", {
-            'id': input_files_ids[idx],
-            'texto': '\n'.join(data['text']),
-            'perguntas': data['bold'],
-            'respostas': data['nonbold']
-        })
-conn.commit()
-cur.close()
+try:
+    cur = conn.cursor()
+    for idx, data in enumerate(json_arr):
+        cur.execute(
+            """INSERT INTO interviews (id, text, questions, answers, meta)
+                VALUES
+                    (%(id)s, %(texto)s, %(perguntas)s, %(respostas)s, %(meta)s)
+                ON CONFLICT DO NOTHING;""", {
+                'id': input_files_ids[idx],
+                'texto': '\n'.join(data['text']),
+                'perguntas': data['bold'],
+                'respostas': data['nonbold'],
+                'meta': json.dumps(metas[idx])
+            })
+    conn.commit()
+    cur.close()
+except Exception as e:
+    print(e)
+    conn.rollback()
 
 # %% [markdown]
 # ## Setting up database connection for performance testing
@@ -358,10 +364,10 @@ for idx, i in enumerate(dbout):
     print("ID: ", i[0])
     print("Lista A (in postgres, not in metas):")
     for j in i[1]:
-        if j not in list(metas[idx]['text']['bag_stemmed'].keys()):
+        if j not in list(metas[idx]['text']['bow_stemmed'].keys()):
             print(j)
     print("Lista B (in metas, not in postgres):")
-    for j in list(metas[idx]['text']['bag_stemmed'].keys()):
+    for j in list(metas[idx]['text']['bow_stemmed'].keys()):
         if j not in i[1]:
             print(j)
     print("")
