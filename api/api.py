@@ -28,12 +28,14 @@ api.add_resource(routes.InterviewAll, '/interviews/all')
 api.add_resource(routes.InterviewAllText, '/interviews/all/text')
 api.add_resource(routes.InterviewAllQuestions, '/interviews/all/questions')
 api.add_resource(routes.InterviewAllAnswers, '/interviews/all/answers')
+api.add_resource(routes.InterviewAllMeta, '/interviews/all/meta')
 api.add_resource(routes.InterviewAny, '/interviews/<int_list:ids>')
 api.add_resource(routes.InterviewAnyText, '/interviews/<int_list:ids>/text')
 api.add_resource(routes.InterviewAnyQuestions,
                  '/interviews/<int_list:ids>/questions')
 api.add_resource(routes.InterviewAnyAnswers,
                  '/interviews/<int_list:ids>/answers')
+api.add_resource(routes.InterviewAnyMeta, '/interviews/<int_list:ids>/meta')
 api.add_resource(routes.InterviewSearch, '/interviews/<string:search_string>')
 api.add_resource(routes.InterviewSearchText,
                  '/interviews/<string:search_string>/text')
@@ -41,6 +43,8 @@ api.add_resource(routes.InterviewSearchQuestions,
                  '/interviews/<string:search_string>/questions')
 api.add_resource(routes.InterviewSearchAnswers,
                  '/interviews/<string:search_string>/answers')
+api.add_resource(routes.InterviewSearchMeta,
+                 '/interviews/<string:search_string>/meta')
 
 # Testing authentication
 
