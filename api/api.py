@@ -440,7 +440,8 @@ class InterviewAny(flask_restful.Resource):
             data = {}
             with conn.cursor() as cur:
                 cur.execute(
-                    """SELECT id, text, questions, answers FROM interviews
+                    """SELECT id, text, questions, answers, meta
+                        FROM interviews
                         WHERE id IN %(id_list)s
                         ORDER BY id;""", {"id_list": tuple(ids)})
                 data['search_ids_count'] = len(ids)
@@ -606,7 +607,8 @@ class InterviewSearch(flask_restful.Resource):
             data = {}
             with conn.cursor() as cur:
                 cur.execute(
-                    """SELECT id, text, questions, answers FROM interviews
+                    """SELECT id, text, questions, answers, meta
+                        FROM interviews
                         WHERE tstext @@
                             websearch_to_tsquery('portuguese',
                                                  %(search_string)s)
