@@ -69,15 +69,16 @@ def verify_password(username, password):
 
 class Users(flask_restful.Resource):
     def post(self):
-        db_username = flask.request.json.get('db_username')
-        db_password = flask.request.json.get('db_password')
+        db_username = flask.request.authorization['username']
+        db_password = flask.request.authorization['password']
         new_username = flask.request.json.get('new_username')
         new_password = flask.request.json.get('new_password')
         if None in [db_username, db_password, new_username, new_password]:
             return {
                 "message":
-                "Required parameters: " +
-                "[db_username, db_password, new_username, new_password]",
+                "Required parameters:\n" +
+                "json:[new_username, new_password]\n" +
+                "authorization:[username, password]",
             }, 400
         try:
             print(db_username, db_password)
@@ -112,24 +113,64 @@ class Users(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
-        return {'username': new_username}, 201
+        return {
+            'message': 'API user created successfully.',
+            'username': new_username
+        }, 201
 
     @auth.login_required
     def put(self):
-        pass
+        username = flask.request.authorization['username']
+        password = flask.request.authorization['password']
+        new_password = flask.request.json.get['password']
+        if None in [username, password, new_password]:
+            return {
+                "message":
+                "Required parameters:\n" + "json:[new_password]\n" +
+                "authorization:[username, password]",
+            }, 400
+        try:
+            conn = postgresql_pool.getconn()
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE api_users SET password = %(new_password)s
+                    WHERE username = %(username)s;""", {
+                        'username': username,
+                        'new_password': config.pwd_context.hash(new_password),
+                    })
+                cur.close()
+            postgresql_pool.putconn(conn)
+        except psycopg2.errors.InsufficientPrivilege:
+            return {
+                "message": "Insufficient privileges for this operation."
+            }, 401
+        except psycopg2.errors.UniqueViolation:
+            return {
+                "message": "Unique Violation. This user already exists."
+            }, 409
+        except psycopg2.OperationalError as e:
+            return {
+                "message": "Unable to connect to database. " + str(e),
+            }, 500
+        except (Exception, psycopg2.Error) as e:
+            return {
+                "message": str(e),
+            }, 500
+        return {
+            'message': 'Password changed successfully.',
+            'username': username,
+        }, 200
 
     def delete(self):
-        db_username = flask.request.json.get('db_username')
-        db_password = flask.request.json.get('db_password')
+        db_username = flask.request.authorization['username']
+        db_password = flask.request.authorization['password']
         username = flask.request.json.get('username')
         if None in [db_username, db_password, username]:
             return {
                 "message":
-                "Required parameters: " +
-                "[db_username, db_password, username]",
+                "Required parameters:\n" + "json:[username]\n" +
+                "authorization:[username, password]",
             }, 400
-            flask_restful.abort(400)
         try:
             conn = psycopg2.connect(dbname=config.DBNAME,
                                     user=db_username,
@@ -161,7 +202,6 @@ class Users(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return {'username': username}, 200
 
 
@@ -169,6 +209,7 @@ class InterviewAll(flask_restful.Resource):
     decorators = [auth.login_required]
 
     def get(self):
+        print(flask.request.authorization)
         try:
             conn = postgresql_pool.getconn()
             data = {}
@@ -185,7 +226,6 @@ class InterviewAll(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -208,7 +248,6 @@ class InterviewAllText(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -231,7 +270,6 @@ class InterviewAllQuestions(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -254,7 +292,6 @@ class InterviewAllAnswers(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -279,7 +316,6 @@ class InterviewAllMeta(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -306,7 +342,6 @@ class InterviewAny(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -333,7 +368,6 @@ class InterviewAnyText(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -360,7 +394,6 @@ class InterviewAnyQuestions(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -387,7 +420,6 @@ class InterviewAnyAnswers(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -416,7 +448,6 @@ class InterviewAnyMeta(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -444,7 +475,6 @@ class InterviewSearch(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -472,7 +502,6 @@ class InterviewSearchText(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -500,7 +529,6 @@ class InterviewSearchQuestions(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -528,7 +556,6 @@ class InterviewSearchAnswers(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
@@ -558,7 +585,6 @@ class InterviewSearchMeta(flask_restful.Resource):
             return {
                 "message": str(e),
             }, 500
-            flask_restful.abort(500)
         return data
 
 
