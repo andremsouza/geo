@@ -6,9 +6,10 @@ import psycopg2.pool
 import psycopg2.errors
 import werkzeug.routing
 import nltk
+import re
 import config
 
-# Setting up nltk resources and database connection
+# Setting up nltk resources and database connection pool
 nltk.download('stopwords')
 try:
     postgresql_pool = psycopg2.pool.SimpleConnectionPool(
@@ -29,12 +30,35 @@ except (Exception, psycopg2.Error) as e:
 
 
 class IntListConverter(werkzeug.routing.BaseConverter):
-    regex = r'\d+(?:,\d+)*'
+    """Custom converter for parsing of a list of integers in the request URL.
+
+    Utilizes BaseConverter class for routing purposes. The format for the
+    int_list converts a string of integers, separated by commas (',').
+    Trailing spaces or commas are supported.
+
+    Example:
+        str('1, 2, 3 ,4,5 , 6, 11, 20, ') -> list([1, 2, 3, 4, 5, 11, 20])
+    """
+    # Defining regular expressions for pattern matching
+    regex = r'\s*\d+\s*(?:,\s*\d+\s*)*,?\s*'
 
     def to_python(self, value):
-        return [int(i) for i in value.split(',')]
+        """Override for conversion of string to python variable (list of ints)
+
+        Converts string matched by regex to a representation in a list of ints
+        in python. This method also treats trailing whitespace or commas,
+        ignoring null values.
+        """
+        return [
+            int(i.strip()) for i in value.split(',')
+            if re.match(r'\d+', i.strip())
+        ]
 
     def to_url(self, value):
+        """Override for conversion of the identified list of ints to a string.
+
+        Converts a list of ints to a standardized string representation.
+        """
         return ','.join(str(i) for i in value)
 
 
@@ -50,6 +74,11 @@ auth = flask_httpauth.HTTPBasicAuth()
 
 @auth.verify_password
 def verify_password(username, password):
+    """Password verification function for user authentication
+
+    Compares given username and password with the data stored in the database,
+    using the current pwd_context.
+    """
     try:
         conn = postgresql_pool.getconn()
         with conn.cursor() as cur:
@@ -57,14 +86,28 @@ def verify_password(username, password):
                 """SELECT username, password FROM api_users
                     WHERE username = %(username)s;""", {"username": username})
             user = cur.fetchone()
-            if (not user or not config.pwd_context.verify(password, user[1])):
-                return False
-            flask.g.user = user
             cur.close()
         postgresql_pool.putconn(conn)
-    except (Exception, psycopg2.Error):
-        flask_restful.abort(500)
-    return True
+        if (not user or not config.pwd_context.verify(password, user[1])):
+            return False
+        flask.g.user = user
+        return True
+    except psycopg2.errors.InsufficientPrivilege:
+        return {
+            "message": "Insufficient privileges for this operation."
+        }, 401
+    except psycopg2.errors.UniqueViolation:
+        return {
+            "message": "Unique Violation. This user already exists."
+        }, 409
+    except psycopg2.OperationalError as e:
+        return {
+            "message": "Unable to connect to database. " + str(e),
+        }, 500
+    except (Exception, psycopg2.Error) as e:
+        return {
+            "message": str(e),
+        }, 500
 
 
 class Users(flask_restful.Resource):
