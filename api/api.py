@@ -111,7 +111,26 @@ def verify_password(username, password):
 
 
 class Users(flask_restful.Resource):
+    """Users resource for management of the API's users.
+
+    This resource class accepts POST, PUT and DELETE requests to respectively
+    create, update password and delete an user from the API. All the requests
+    to this resource require autentication parameters (in the Authorization
+    header) and data provided in the JSON object (such as new_password).
+    For POST and DELETE requests, the API will set up a connection the the
+    database using the username and password provided in the Authorization
+    header. The provided user must have permission for INSERT and DELETE
+    operations on the api_users table.
+    For PUT requests, an API user may authenticate and change its own password.
+    """
     def post(self):
+        """POST requests' handler. Creates a new API user.
+
+        Requires database user/role data in the Authorization header, with
+        INSERT permission for the api_users table. The new user's data must be
+        given in the JSON object of the request, in the 'new_username' and
+        'new_password' keys.
+        """
         db_username = flask.request.authorization['username']
         db_password = flask.request.authorization['password']
         new_username = flask.request.json.get('new_username')
@@ -121,10 +140,9 @@ class Users(flask_restful.Resource):
                 "message":
                 "Required parameters:\n" +
                 "json:[new_username, new_password]\n" +
-                "authorization:[username, password]",
+                "authorization:[username, password]\n",
             }, 400
         try:
-            print(db_username, db_password)
             conn = psycopg2.connect(dbname=config.DBNAME,
                                     user=db_username,
                                     password=db_password,
@@ -163,9 +181,15 @@ class Users(flask_restful.Resource):
 
     @auth.login_required
     def put(self):
+        """PUT requests' handler. Changes a API user's password.
+
+        The API user's username and password must be given in the Authorization
+        header. The new password must be given in the JSON object of the
+        request, in the 'new_password' key.
+        """
         username = flask.request.authorization['username']
         password = flask.request.authorization['password']
-        new_password = flask.request.json.get['password']
+        new_password = flask.request.json.get['new_password']
         if None in [username, password, new_password]:
             return {
                 "message":
@@ -182,6 +206,7 @@ class Users(flask_restful.Resource):
                         'new_password': config.pwd_context.hash(new_password),
                     })
                 cur.close()
+            conn.commit()
             postgresql_pool.putconn(conn)
         except psycopg2.errors.InsufficientPrivilege:
             return {
@@ -205,6 +230,12 @@ class Users(flask_restful.Resource):
         }, 200
 
     def delete(self):
+        """DELETE requests' handler. Deletes an API user.
+
+        Requires database user/role data in the Authorization header, with
+        DELETE permission for the api_users table. The user's data must be
+        given in the JSON object of the request, in the 'username' key.
+        """
         db_username = flask.request.authorization['username']
         db_password = flask.request.authorization['password']
         username = flask.request.json.get('username')
