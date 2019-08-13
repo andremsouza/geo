@@ -114,7 +114,7 @@ class Users(flask_restful.Resource):
     """Users resource for management of the API's users.
 
     This resource class accepts POST, PUT and DELETE requests to respectively
-    create, update password and delete an user from the API. All the requests
+    create, update password and delete an user from the API. All requests
     to this resource require autentication parameters (in the Authorization
     header) and data provided in the JSON object (such as new_password).
     For POST and DELETE requests, the API will set up a connection the the
@@ -280,6 +280,12 @@ class Users(flask_restful.Resource):
 
 
 class InterviewAll(flask_restful.Resource):
+    """Resource class for access to all data from the interviews.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self):
@@ -289,7 +295,8 @@ class InterviewAll(flask_restful.Resource):
             data = {}
             with conn.cursor() as cur:
                 cur.execute(
-                    """SELECT id, text, questions, answers FROM interviews
+                    """SELECT id, text, questions, answers, meta
+                        FROM interviews
                         ORDER BY id;""")
                 data['row_count'] = cur.rowcount
                 data['column_names'] = [desc[0] for desc in cur.description]
@@ -304,6 +311,12 @@ class InterviewAll(flask_restful.Resource):
 
 
 class InterviewAllText(flask_restful.Resource):
+    """Resource class for access to all interviews' text.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self):
@@ -326,6 +339,12 @@ class InterviewAllText(flask_restful.Resource):
 
 
 class InterviewAllQuestions(flask_restful.Resource):
+    """Resource class for access to all interviews' questions.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self):
@@ -348,6 +367,12 @@ class InterviewAllQuestions(flask_restful.Resource):
 
 
 class InterviewAllAnswers(flask_restful.Resource):
+    """Resource class for access to all interviews' answers.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self):
@@ -370,6 +395,12 @@ class InterviewAllAnswers(flask_restful.Resource):
 
 
 class InterviewAllMeta(flask_restful.Resource):
+    """Resource class for access to all interviews' metadata.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self):
@@ -394,6 +425,13 @@ class InterviewAllMeta(flask_restful.Resource):
 
 
 class InterviewAny(flask_restful.Resource):
+    """Resource class for access to all data of a list of interviews.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    The list of interviews should be a list of integers.
+    """
     decorators = [auth.login_required]
 
     def get(self, ids):
@@ -420,6 +458,13 @@ class InterviewAny(flask_restful.Resource):
 
 
 class InterviewAnyText(flask_restful.Resource):
+    """Resource class for access to the text of a list of interviews.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    The list of interviews should be a list of integers.
+    """
     decorators = [auth.login_required]
 
     def get(self, ids):
@@ -446,6 +491,13 @@ class InterviewAnyText(flask_restful.Resource):
 
 
 class InterviewAnyQuestions(flask_restful.Resource):
+    """Resource class for access to the questions of a list of interviews.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    The list of interviews should be a list of integers.
+    """
     decorators = [auth.login_required]
 
     def get(self, ids):
@@ -472,6 +524,13 @@ class InterviewAnyQuestions(flask_restful.Resource):
 
 
 class InterviewAnyAnswers(flask_restful.Resource):
+    """Resource class for access to the answers of a list of interviews.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    The list of interviews should be a list of integers.
+    """
     decorators = [auth.login_required]
 
     def get(self, ids):
@@ -498,6 +557,13 @@ class InterviewAnyAnswers(flask_restful.Resource):
 
 
 class InterviewAnyMeta(flask_restful.Resource):
+    """Resource class for access to the metadata of a list of interviews.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    The list of interviews should be a list of integers.
+    """
     decorators = [auth.login_required]
 
     def get(self, ids):
@@ -526,6 +592,12 @@ class InterviewAnyMeta(flask_restful.Resource):
 
 
 class InterviewSearch(flask_restful.Resource):
+    """Resource class for access to interview data, searching by a string.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self, search_string):
@@ -553,6 +625,12 @@ class InterviewSearch(flask_restful.Resource):
 
 
 class InterviewSearchText(flask_restful.Resource):
+    """Resource class for access to interview text, searching by a string.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self, search_string):
@@ -580,6 +658,12 @@ class InterviewSearchText(flask_restful.Resource):
 
 
 class InterviewSearchQuestions(flask_restful.Resource):
+    """Resource class for access to interview questions, searching by a string.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self, search_string):
@@ -607,6 +691,12 @@ class InterviewSearchQuestions(flask_restful.Resource):
 
 
 class InterviewSearchAnswers(flask_restful.Resource):
+    """Resource class for access to interview answers, searching by a string.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self, search_string):
@@ -634,6 +724,12 @@ class InterviewSearchAnswers(flask_restful.Resource):
 
 
 class InterviewSearchMeta(flask_restful.Resource):
+    """Resource class for access to interview metadata, searching by a string.
+
+    This resource class accepst GET requests. All requests to this resource
+    require user authentication parameters (in the Authorization header).
+    The response data is JSON formatted.
+    """
     decorators = [auth.login_required]
 
     def get(self, search_string):
