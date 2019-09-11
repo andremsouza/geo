@@ -10,15 +10,19 @@ import json
 import re
 import nltk.tokenize
 import nltk.corpus
+import nltk.tag
+import nltk.chunk
 import nltk.stem
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('rslp')
-
+nltk.download('averaged_perceptron_tagger')
+nltk.download('maxent_ne_chunker')
+nltk.download('words')
 # %% [markdown]
 # ## Setting up database connection
+# %%
 PASSWORD = None
-
 # %%
 # conn = psycopg2.connect(
 #     "host=%s port=%s dbname=%s user=%s password=%s" %
@@ -31,12 +35,10 @@ conn = psycopg2.connect(host='localhost',
                         password=PASSWORD)
 cur = conn.cursor()
 cur.close()
-
 # %% [markdown]
 # ## Processing interviews with simple pattern recognition / standardizing
 # %% [markdown]
 # ### Listing input files
-
 # %%
 # Get all input files and sort by athlete id
 input_files = sorted(
@@ -144,8 +146,8 @@ for idx in json_patterns['athlete-name']:
 # redundant information
 questionset = set(['USP'])
 for idx in json_patterns['one-one-abbr']:
-    if ('USP – ' in json_arr[idx]['text'][1] or
-            'USP – ' in json_arr[idx]['text'][2]):
+    if ('USP – ' in json_arr[idx]['text'][1]
+            or 'USP – ' in json_arr[idx]['text'][2]):
         del json_arr[idx]['text'][0]
         json_arr[idx]['nonbold'] = []
         for idx2, s in enumerate(json_arr[idx]['text']):
@@ -287,6 +289,7 @@ for idx, x in enumerate(json_arr):
 # %%
 # Generating bag-of-words (stemmed or not) for insertion at the database
 # stemmer = nltk.stem.snowball.SnowballStemmer('portuguese')
+# Recognizing named entities with NLTK's recommended algorithms
 stemmer = nltk.stem.rslp.RSLPStemmer()
 metas = []
 for idx, x in enumerate(interviews_split):
@@ -319,6 +322,35 @@ for idx, x in enumerate(interviews_split):
         meta['answers']['bow_stemmed'][stemmer.stem(
             token)] = meta['answers']['bow_stemmed'].get(
                 stemmer.stem(token), 0) + meta['answers']['bow'][token]
+
+    # Adding recognized named entities to metadata
+    meta['text']['ne'] = [
+        nltk.chunk.ne_chunk(
+            i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
+                nltk.tokenize.word_tokenize(sent, language='portuguese')
+                for sent in nltk.tokenize.sent_tokenize(
+                    '\n'.join(json_arr[idx]['text']), language='portuguese')
+            ],
+                                                            lang='por')
+    ]
+    meta['questions']['ne'] = [
+        nltk.chunk.ne_chunk(
+            i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
+                nltk.tokenize.word_tokenize(sent, language='portuguese')
+                for sent in nltk.tokenize.sent_tokenize(
+                    '\n'.join(json_arr[idx]['bold']), language='portuguese')
+            ],
+                                                            lang='por')
+    ]
+    meta['answers']['ne'] = [
+        nltk.chunk.ne_chunk(
+            i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
+                nltk.tokenize.word_tokenize(sent, language='portuguese')
+                for sent in nltk.tokenize.sent_tokenize(
+                    '\n'.join(json_arr[idx]['nonbold']), language='portuguese')
+            ],
+                                                            lang='por')
+    ]
     metas.append(meta)
 
 # %% [markdown]
