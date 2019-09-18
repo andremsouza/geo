@@ -1,74 +1,245 @@
+-- USER: api -- Change password when deploying for production
+CREATE USER api WITH NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN PASSWORD 'api';
+
+-- USER: api_admin -- Change password when deploying for production
+CREATE USER api_admin WITH SUPERUSER CREATEDB CREATEROLE INHERIT LOGIN PASSWORD 'api_admin';
+
 -- FUNCTION: public.interviews_textarrays_update_trigger()
 -- DROP FUNCTION public.interviews_textarrays_update_trigger();
-CREATE FUNCTION public.interviews_textarrays_update_trigger() RETURNS trigger LANGUAGE 'plpgsql' COST 100 VOLATILE NOT LEAKPROOF AS $ BODY $ begin new.tsquestions: = to_tsvector(
-  'pg_catalog.portuguese',
-  array_to_string(new.questions, chr(10))
-);
-new.tsanswers: = to_tsvector(
-  'pg_catalog.portuguese',
-  array_to_string(new.answers, chr(10))
-);
-return new;
-end $ BODY $;
-ALTER FUNCTION public.interviews_textarrays_update_trigger() OWNER TO andre;
+CREATE FUNCTION public.interviews_textarrays_update_trigger()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    AS $BODY$
+    begin
+        new.tsquestions := to_tsvector('pg_catalog.portuguese',
+                                        array_to_string(new.questions, chr(10)));
+        new.tsanswers := to_tsvector('pg_catalog.portuguese',
+                                        array_to_string(new.answers, chr(10)));
+      return new;
+    end
+$BODY$;
 
 -- Table: public.interviews
 -- DROP TABLE public.interviews;
 CREATE TABLE public.interviews (
-  id integer NOT NULL,
-  text text COLLATE pg_catalog."default" NOT NULL,
-  questions text [] COLLATE pg_catalog."default" NOT NULL,
-  answers text [] COLLATE pg_catalog."default" NOT NULL,
-  meta jsonb NOT NULL,
-  tstext tsvector NOT NULL,
-  tsquestions tsvector NOT NULL,
-  tsanswers tsvector NOT NULL,
-  CONSTRAINT interviews_pkey PRIMARY KEY (id),
-  CONSTRAINT interviews_id_check CHECK (id > 0)
-) WITH (OIDS = FALSE) TABLESPACE pg_default;
-ALTER TABLE
-  public.interviews OWNER to andre;
-GRANT
-SELECT(id) ON public.interviews TO miner;
-GRANT
-SELECT(text) ON public.interviews TO miner;
-GRANT
-SELECT(questions) ON public.interviews TO miner;
-GRANT
-SELECT(answers) ON public.interviews TO miner;
-GRANT
-SELECT(meta) ON public.interviews TO miner;
-GRANT
-SELECT(tstext) ON public.interviews TO miner;
-GRANT
-SELECT(tsquestions) ON public.interviews TO miner;
-GRANT
-SELECT(tsanswers) ON public.interviews TO miner;
+    id integer NOT NULL,
+    text text NOT NULL,
+    questions text[] NOT NULL,
+    answers text[] NOT NULL,
+    meta jsonb NOT NULL,
+    tstext tsvector NOT NULL,
+    tsquestions tsvector NOT NULL,
+    tsanswers tsvector NOT NULL,
+    CONSTRAINT interviews_pkey PRIMARY KEY (id),
+    CONSTRAINT interviews_id_check CHECK (id > 0)
+);
+GRANT SELECT ON public.interviews TO api;
+GRANT ALL ON public.interviews TO api_admin;
 
 -- Index: interviews_idx_tsanswers
-  -- DROP INDEX public.interviews_idx_tsanswers;
-  CREATE INDEX interviews_idx_tsanswers ON public.interviews USING gin (tsanswers) TABLESPACE pg_default;
+-- DROP INDEX public.interviews_idx_tsanswers;
+CREATE INDEX interviews_idx_tsanswers ON public.interviews USING gin (tsanswers);
 
 -- Index: interviews_idx_tsquestions
-  -- DROP INDEX public.interviews_idx_tsquestions;
-  CREATE INDEX interviews_idx_tsquestions ON public.interviews USING gin (tsquestions) TABLESPACE pg_default;
+-- DROP INDEX public.interviews_idx_tsquestions;
+CREATE INDEX interviews_idx_tsquestions ON public.interviews USING gin (tsquestions);
 
 -- Index: interviews_idx_tstext
-  -- DROP INDEX public.interviews_idx_tstext;
-  CREATE INDEX interviews_idx_tstext ON public.interviews USING gin (tstext) TABLESPACE pg_default;
+-- DROP INDEX public.interviews_idx_tstext;
+CREATE INDEX interviews_idx_tstext ON public.interviews USING gin (tstext);
 
 -- Trigger: interviews_trigg_textarrays
-  -- DROP TRIGGER interviews_trigg_textarrays ON public.interviews;
-  CREATE TRIGGER interviews_trigg_textarrays BEFORE
-INSERT
-  OR
-UPDATE
-  ON public.interviews FOR EACH ROW EXECUTE PROCEDURE public.interviews_textarrays_update_trigger();
+-- DROP TRIGGER interviews_trigg_textarrays ON public.interviews;
+CREATE TRIGGER interviews_trigg_textarrays BEFORE INSERT OR UPDATE ON public.interviews
+    FOR EACH ROW EXECUTE PROCEDURE public.interviews_textarrays_update_trigger();
 
 -- Trigger: interviews_trigg_tstext
-  -- DROP TRIGGER interviews_trigg_tstext ON public.interviews;
-  CREATE TRIGGER interviews_trigg_tstext BEFORE
-INSERT
-  OR
-UPDATE
-  ON public.interviews FOR EACH ROW EXECUTE PROCEDURE tsvector_update_trigger('tstext', 'pg_catalog.portuguese', 'text');
+-- DROP TRIGGER interviews_trigg_tstext ON public.interviews;
+CREATE TRIGGER interviews_trigg_tstext BEFORE INSERT OR UPDATE ON public.interviews
+    FOR EACH ROW EXECUTE PROCEDURE tsvector_update_trigger('tstext', 'pg_catalog.portuguese', 'text');
+
+-- Table: public.api_users
+-- DROP TABLE public.api_users;
+CREATE TABLE public.api_users (
+    username character varying(63) NOT NULL,
+    password character varying(255) NOT NULL,
+    CONSTRAINT api_users_pkey PRIMARY KEY (username)
+);
+GRANT SELECT, UPDATE ON TABLE public.api_users TO api;
+GRANT ALL ON TABLE public.api_users to api_admin;
+
+-- Extension: plpython3u
+CREATE EXTENSION plpython3u;
+
+-- Procedure: interview_insert
+CREATE OR REPLACE PROCEDURE interview_insert (IN id integer, IN docx text)
+/* Procedure in PL/Python for insertion of an interview into the "interviews" table
+
+Converts an JSON formatted string, generated by docx2json (https://pypi.org/project/docx2json/),
+extracting metadata and inserting into the "interviews" table.
+NLTK is used for metadata extraction.
+
+Args:
+    id (int): ID number of the interviewee
+    docx (str): JSON string of the document to be inserted (converted by docx2json)
+*/
+LANGUAGE plpython3u
+AS $$
+# Imports
+import json
+import re
+import nltk.tokenize
+import nltk.corpus
+import nltk.tag
+import nltk.chunk
+import nltk.stem
+
+# Convert JSON string to a dict variable
+interview = json.loads(doc)
+
+# Assuming "bold-nonbold" pattern for all input interviews
+# Preprocessing interview
+if interview['text'][0] == 'Início da transcrição':
+    del interview['text'][0]
+if interview['bold'][0] == 'Início da transcrição':
+    del interview['bold'][0]
+if 'Início da transcrição ' in interview['bold'][0]:
+    interview['bold'][0] = interview['bold'][0].replace(
+        'Início da transcrição ', '')
+#   Removing trailing spaces
+for idx2, s in enumerate(interview['text']):
+    interview['text'][idx2] = s.strip(' ')
+for idx2, s in enumerate(interview['bold']):
+    interview['bold'][idx2] = s.strip(' ')
+for idx2, s in enumerate(interview['nonbold']):
+    interview['nonbold'][idx2] = s.strip(' ')
+
+# Generating metadata
+
+# Tokenizing using NLTK
+interview_split = {
+    'text': [
+        y for x in [
+            nltk.tokenize.word_tokenize(i, language='portuguese')
+            for i in nltk.tokenize.sent_tokenize(
+                '\n'.join(interview['text']).lower(), language='portuguese')
+        ] for y in x
+    ],
+    'questions': [
+        y for x in [
+            nltk.tokenize.word_tokenize(i, language='portuguese')
+            for i in nltk.tokenize.sent_tokenize(
+                '\n'.join(interview['bold']).lower(), language='portuguese')
+        ] for y in x
+    ],
+    'answers': [
+        y for x in [
+            nltk.tokenize.word_tokenize(i, language='portuguese')
+            for i in nltk.tokenize.sent_tokenize(
+                '\n'.join(interview['nonbold']).lower(), language='portuguese')
+        ] for y in x
+    ],
+}
+
+# Removing tokens with trailing dots.
+dot_re = r'^[^\.]+\.$'
+for idx, tok in enumerate(interview_split['text']):
+    if re.match(dot_re, tok):
+        interview_split['text'][idx] = tok[:-1]
+for idx, tok in enumerate(interview_split['questions']):
+    if re.match(dot_re, tok):
+        interview_split['questions'][idx] = tok[:-1]
+for idx, tok in enumerate(interview_split['answers']):
+    if re.match(dot_re, tok):
+        interview_split['answers'][idx] = tok[:-1]
+
+# Generating token set, removing stopwords
+tokens = {
+    'text':
+        set(interview_split['text']) -
+        set(nltk.corpus.stopwords.words('portuguese')),
+    'questions':
+        set(interview_split['questions']) -
+        set(nltk.corpus.stopwords.words('portuguese')),
+    'answers':
+        set(interview_split['answers']) -
+        set(nltk.corpus.stopwords.words('portuguese'))
+}
+
+# Generating bag-of-words (stemmed or not) for insertion at the database
+# Recognizing named entities with recommended algorithms from NLTK
+stemmer = nltk.stem.rslp.RSLPStemmer()
+# stemmer = nltk.stem.snowball.SnowballStemmer('portuguese') # optional
+meta = {
+    'text': {
+        'bow': {},
+        'bow_stemmed': {}
+    },
+    'questions': {
+        'bow': {},
+        'bow_stemmed': {}
+    },
+    'answers': {
+        'bow': {},
+        'bow_stemmed': {}
+    }
+}
+for token in tokens['text']:
+    meta['text']['bow'][token] = interview_split['text'].count(token)
+    meta['text']['bow_stemmed'][
+        stemmer.stem(token)] = meta['text']['bow_stemmed'].get(
+            stemmer.stem(token), 0) + meta['text']['bow'][token]
+for token in tokens['questions']:
+    meta['questions']['bow'][token] = interview_split['questions'].count(token)
+    meta['questions']['bow_stemmed'][stemmer.stem(
+        token)] = meta['questions']['bow_stemmed'].get(
+            stemmer.stem(token), 0) + meta['questions']['bow'][token]
+for token in tokens['answers']:
+    meta['answers']['bow'][token] = interview_split['answers'].count(token)
+    meta['answers']['bow_stemmed'][stemmer.stem(
+        token)] = meta['answers']['bow_stemmed'].get(
+            stemmer.stem(token), 0) + meta['answers']['bow'][token]
+
+# Adding recognized named entities to metadata
+meta['text']['ne'] = [
+    nltk.chunk.ne_chunk(
+        i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
+            nltk.tokenize.word_tokenize(sent, language='portuguese')
+            for sent in nltk.tokenize.sent_tokenize(
+                '\n'.join(interview['text']), language='portuguese')
+        ],
+                                                        lang='por')
+]
+meta['questions']['ne'] = [
+    nltk.chunk.ne_chunk(
+        i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
+            nltk.tokenize.word_tokenize(sent, language='portuguese')
+            for sent in nltk.tokenize.sent_tokenize(
+                '\n'.join(interview['bold']), language='portuguese')
+        ],
+                                                        lang='por')
+]
+meta['answers']['ne'] = [
+    nltk.chunk.ne_chunk(
+        i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
+            nltk.tokenize.word_tokenize(sent, language='portuguese')
+            for sent in nltk.tokenize.sent_tokenize(
+                '\n'.join(interview['nonbold']), language='portuguese')
+        ],
+                                                        lang='por')
+]
+
+# Inserting data into the "interviews" table
+plpy.execute(
+    """INSERT INTO interviews (id, text, questions, answers, meta)
+        VALUES
+            (%(id)s, %(texto)s, %(perguntas)s, %(respostas)s, %(meta)s)
+        ON CONFLICT DO NOTHING;""", {
+    'id': id,
+    'texto': '\n'.join(interview['text']),
+    'perguntas': interview['bold'],
+    'respostas': interview['nonbold'],
+    'meta': json.dumps(meta),
+    }
+)
+$$;
