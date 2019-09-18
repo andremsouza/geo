@@ -288,9 +288,9 @@ for idx, x in enumerate(json_arr):
 
 # %%
 # Generating bag-of-words (stemmed or not) for insertion at the database
-# stemmer = nltk.stem.snowball.SnowballStemmer('portuguese')
 # Recognizing named entities with NLTK's recommended algorithms
 stemmer = nltk.stem.rslp.RSLPStemmer()
+# stemmer = nltk.stem.snowball.SnowballStemmer('portuguese') # optional
 metas = []
 for idx, x in enumerate(interviews_split):
     meta = {
