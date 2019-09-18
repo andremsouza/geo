@@ -42,12 +42,12 @@ cur.close()
 # %%
 # Get all input files and sort by athlete id
 input_files = sorted(
-    os.listdir('./source-files/GRD Pronto/Entrevistas Completas'),
+    os.listdir('./database/source-files/GRD Pronto/Entrevistas Completas'),
     key=lambda id: int(id[:2]))
 input_files_ids = [int(f[:2]) for f in input_files]
 input_files = [
-    os.getcwd() + '/source-files/GRD Pronto/Entrevistas Completas/' + file
-    for file in input_files
+    os.getcwd() + '/database/source-files/GRD Pronto/Entrevistas Completas/' +
+    file for file in input_files
 ]
 print("Interviews (number of documents = %d):" % len(input_files),
       input_files_ids,
@@ -67,7 +67,7 @@ json_arr = [json.loads(docx2json.convert(f)) for f in input_files]
 # %%
 # Separating pattern indexes
 # I may need to make those recognitions more complex, depending on new
-# patterns and possible match in existing ones
+# patterns and possible false match in existing ones
 json_patterns = {}
 json_patterns['bold-nonbold'] = [
     idx for idx, f in enumerate(json_arr)
