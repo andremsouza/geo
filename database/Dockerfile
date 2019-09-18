@@ -19,16 +19,16 @@ RUN apt-get update && apt-get install -y python3 python3-pip postgresql-plpython
 COPY ./requirements.txt /opt/app/requirements.txt
 RUN pip3 install --upgrade --force-reinstall -r /opt/app/requirements.txt
 
+# Download NLTK resources
+RUN python3 -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('rslp'); nltk.download('averaged_perceptron_tagger'); nltk.download('maxent_ne_chunker'); nltk.download('words')"
+
 # Run the rest of the commands as the ``postgres`` user created by the ``postgresql-11`` package when it was ``apt-get installed``
 USER postgres
 
-# Create a PostgreSQL role named ``docker`` with ``docker`` as the password and
-# then create a database `docker` owned by the ``docker`` role.
-# Note: here we use ``&&\`` to run commands one after the other - the ``\``
-#       allows the RUN command to span multiple lines.
-RUN /etc/init.d/postgresql start &&\
-    psql --command "CREATE USER docker WITH SUPERUSER PASSWORD 'docker';" &&\
-    createdb -O docker docker
+# Create "geo" database with the user "postgres" as owner
+# Execute schema.sql script on "geo" database, creating all the structure
+COPY ./schema.sql /opt/app/schema.sql
+RUN /etc/init.d/postgresql start && createdb -O postgres geo && psql -d geo -f /opt/app/schema.sql
 
 # # Adjust PostgreSQL configuration so that remote connections to the
 # # database are possible.
