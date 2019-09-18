@@ -230,16 +230,24 @@ meta['answers']['ne'] = [
 ]
 
 # Inserting data into the "interviews" table
-plpy.execute(
+plan = plpy.prepare(
     """INSERT INTO interviews (id, text, questions, answers, meta)
         VALUES
-            (%(id)s, %(texto)s, %(perguntas)s, %(respostas)s, %(meta)s)
-        ON CONFLICT DO NOTHING;""", {
-    'id': id,
-    'texto': '\n'.join(interview['text']),
-    'perguntas': interview['bold'],
-    'respostas': interview['nonbold'],
-    'meta': json.dumps(meta),
-    }
+            ($1, $2, $3, $4, $5)
+        ON CONFLICT DO NOTHING;""", [
+    "integer",
+    "text",
+    "text[]",
+    "text[]",
+    "jsonb",
+    ]
+)
+plpy.execute(plan, [
+    id,
+    '\n'.join(interview['text']),
+    interview['bold'],
+    interview['nonbold'],
+    json.dumps(meta),
+    ]
 )
 $$;
