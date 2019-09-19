@@ -233,13 +233,13 @@ meta['answers']['ne'] = [
 plan = plpy.prepare(
     """INSERT INTO interviews (id, text, questions, answers, meta)
         VALUES
-            ($1, $2, $3, $4, $5)
+            ($1, $2, $3, $4, to_jsonb($5))
         ON CONFLICT DO NOTHING;""", [
     "integer",
     "text",
     "text[]",
     "text[]",
-    "jsonb",
+    "text",
     ]
 )
 plpy.execute(plan, [
