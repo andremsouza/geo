@@ -95,7 +95,7 @@ import nltk.chunk
 import nltk.stem
 
 # Convert JSON string to a dict variable
-interview = json.loads(doc)
+interview = json.loads(docx)
 
 # Assuming "bold-nonbold" pattern for all input interviews
 # Preprocessing interview
