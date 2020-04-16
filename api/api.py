@@ -1,12 +1,16 @@
-import flask
-import flask_restful
-import flask_httpauth
-import psycopg2
-import psycopg2.pool
-import psycopg2.errors
-import werkzeug.routing
-import nltk
+"""TODO: Extend documentation."""
+import argparse
 import re
+
+import flask
+import flask_httpauth
+import flask_restful
+import nltk
+import psycopg2
+import psycopg2.errors
+import psycopg2.pool
+import werkzeug.routing
+
 import config
 
 # Setting up nltk resources and database connection pool
@@ -39,11 +43,12 @@ class IntListConverter(werkzeug.routing.BaseConverter):
     Example:
         str('1, 2, 3 ,4,5 , 6, 11, 20, ') -> list([1, 2, 3, 4, 5, 11, 20])
     """
+
     # Defining regular expressions for pattern matching
     regex = r'\s*\d+\s*(?:,\s*\d+\s*)*,?\s*'
 
     def to_python(self, value):
-        """Override for conversion of string to python variable (list of ints)
+        """Override for conversion of string to python variable (list of ints).
 
         Converts string matched by regex to a representation in a list of ints
         in python. This method also treats trailing whitespace or commas,
@@ -74,7 +79,7 @@ auth = flask_httpauth.HTTPBasicAuth()
 
 @auth.verify_password
 def verify_password(username, password):
-    """Password verification function for user authentication
+    """Password verification function for user authentication.
 
     Compares given username and password with the data stored in the database,
     using the current pwd_context.
@@ -93,13 +98,9 @@ def verify_password(username, password):
         flask.g.user = user
         return True
     except psycopg2.errors.InsufficientPrivilege:
-        return {
-            "message": "Insufficient privileges for this operation."
-        }, 401
+        return {"message": "Insufficient privileges for this operation."}, 401
     except psycopg2.errors.UniqueViolation:
-        return {
-            "message": "Unique Violation. This user already exists."
-        }, 409
+        return {"message": "Unique Violation. This user already exists."}, 409
     except psycopg2.OperationalError as e:
         return {
             "message": "Unable to connect to database. " + str(e),
@@ -294,8 +295,7 @@ class InterviewAll(flask_restful.Resource):
             conn = postgresql_pool.getconn()
             data = {}
             with conn.cursor() as cur:
-                cur.execute(
-                    """SELECT id, text, questions, answers, meta
+                cur.execute("""SELECT id, text, questions, answers, meta
                         FROM interviews
                         ORDER BY id;""")
                 data['row_count'] = cur.rowcount
@@ -784,4 +784,10 @@ api.add_resource(InterviewSearchMeta,
 
 # Main script
 if __name__ == "__main__":
-    app.run(debug=True, ssl_context='adhoc')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d",
+                        "--debug",
+                        help="Activate debug mode for Flask",
+                        action="store_true")
+    args = parser.parse_args()
+    app.run(debug=args.verbose, ssl_context='adhoc')
