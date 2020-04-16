@@ -1,4 +1,10 @@
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/*
+# Visual Studio Code fiels
 .vscode/*
+# Pycache
 api/__pycache__/*
+# Mypy cache
+.mypy_cache/*
+# ignore sensitive data
+database/source-data/* 
