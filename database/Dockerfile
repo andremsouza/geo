@@ -12,7 +12,7 @@ RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ buster-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
 # Install postgresql-11
-RUN apt-get update && apt-get install -y build-essential tar gzip bzip2 zlib1g readline-common postgresql-11
+RUN apt-get update && apt-get install -y build-essential tar gzip bzip2 zlib1g readline-common postgresql-11 postgresql-client-11 libpq-dev
 
 # Install python, pip and package requirements
 RUN apt-get update && apt-get install -y python3 python3-pip postgresql-plpython3-11

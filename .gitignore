@@ -7,4 +7,4 @@ api/__pycache__/*
 # Mypy cache
 .mypy_cache/*
 # ignore sensitive data
-database/source-data/* 
+database/source-files/* 
