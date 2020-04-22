@@ -116,6 +116,9 @@ if __name__ == "__main__":
     # delete sensitive data
     del args.password
 
+    # TODO: List files to pass as function arguments
+    # TODO: Add support for directories
+
     # Get directory/file names
 
     # close connection
