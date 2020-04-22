@@ -8,3 +8,5 @@ api/__pycache__/*
 .mypy_cache/*
 # ignore sensitive data
 database/source-files/* 
+# ignore pychache files
+*/__pycache__/*
