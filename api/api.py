@@ -182,7 +182,7 @@ class Users(flask_restful.Resource):
 
     @auth.login_required
     def put(self):
-        """PUT requests' handler. Changes a API user's password.
+        """PUT requests' handler. Changes an API user's password.
 
         The API user's username and password must be given in the Authorization
         header. The new password must be given in the JSON object of the
