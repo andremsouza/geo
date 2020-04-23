@@ -1,19 +1,28 @@
-"""TODO: Extend documentation."""
+"""Script to insert interviews to GEO database. Use "-h" for more help."""
 import argparse
-# import json
-# import os
-# import re
+import json
 
-# import docx2json
+import docx2json
 import getpass
-# import nltk.tokenize
-# import nltk.corpus
-# import nltk.tag
-# import nltk.chunk
-# import nltk.stem
 import psycopg2
 
-import config
+try:
+    import config  # Try to import attributes from config.py
+except Exception as e:  # If no config.py, define Object with empty attributes
+    print('Warning: No config.py found. ' +
+          'Using empty values for non-provided connection attributes. ' +
+          str(e))
+
+    class Object(object):
+        """Dummy class for config attributes."""
+        pass
+
+    config = Object()
+    config.HOSTNAME = ''
+    config.PORT = ''
+    config.DBNAME = ''
+    config.USERNAME = ''
+    config.PASSWORD = ''
 
 
 class PasswordPromptAction(argparse.Action):
@@ -45,30 +54,47 @@ class PasswordPromptAction(argparse.Action):
 def generate_argparser():
     """Return ArgumentParser object for database connection."""
     parser = argparse.ArgumentParser(
-        description='Python script to import new interviews to GEO database.',
+        description='Python script to import new interviews to GEO database ' +
+        'from .docx files.',
         epilog='Report bugs to <https://github.com/andremsouza/ic-geo>')
+    parser.add_argument('id',
+                        type=int,
+                        help='id for interview. ' +
+                        'Must be a positive integer.',
+                        metavar='ID')
     parser.add_argument('filepath',
-                        nargs='+',
                         type=str,
-                        help='Path to file for insertion',
+                        help='path to file for insertion. ' +
+                        'May be an absolute or relative path.',
                         metavar='FILEPATH')
+    parser.add_argument('-t',
+                        '--type',
+                        action='store',
+                        default='docx',
+                        type=str,
+                        choices=['docx', 'json'],
+                        required=False,
+                        help='type of file for input. ' +
+                        'May be either "docx" or "json" ' + '(default="docx")',
+                        metavar='FILETYPE',
+                        dest='filetype')
     parser.add_argument('-H',
                         '--host',
                         action='store',
                         default=config.HOSTNAME,
                         type=str,
                         required=False,
-                        help='database server host or socket directory' +
+                        help='database server host or socket directory ' +
                         '(default=config.HOSTNAME)',
                         metavar='HOSTNAME',
-                        dest='host')
+                        dest='hostname')
     parser.add_argument('-p',
                         '--port',
                         action='store',
                         default=config.PORT,
                         type=str,
                         required=False,
-                        help='database server port' + '(default=config.PORT)',
+                        help='database server port ' + '(default=config.PORT)',
                         metavar='PORT',
                         dest='port')
     parser.add_argument('-d',
@@ -77,7 +103,7 @@ def generate_argparser():
                         default=config.DBNAME,
                         type=str,
                         required=False,
-                        help='database name to connect to' +
+                        help='database name to connect to ' +
                         '(default=config.DBNAME)',
                         metavar='DBNAME',
                         dest='dbname')
@@ -87,7 +113,7 @@ def generate_argparser():
                         default=config.USERNAME,
                         type=str,
                         required=False,
-                        help='database user name' +
+                        help='database user name ' +
                         '(default=config.USERNAME)',
                         metavar='USERNAME',
                         dest='username')
@@ -96,7 +122,7 @@ def generate_argparser():
                         default=config.PASSWORD,
                         type=str,
                         required=False,
-                        help='password prompt' + '(default=config.PASSWORD)',
+                        help='password prompt ' + '(default=config.PASSWORD)',
                         metavar='',
                         dest='password')
 
@@ -107,19 +133,28 @@ if __name__ == "__main__":
     # Get arguments and connect to database
     parser = generate_argparser()
     args = parser.parse_args()
-    print(args.filepath)
-    conn = psycopg2.connect(host=args.host,
+    conn = psycopg2.connect(host=args.hostname,
                             port=args.port,
                             dbname=args.dbname,
                             user=args.username,
                             password=args.password)
-    # delete sensitive data
+    # Delete sensitive data
     del args.password
 
-    # TODO: List files to pass as function arguments
-    # TODO: Add support for directories
+    # Convert .docx to .json, if needed
+    if (args.filetype == 'docx'):
+        doc = docx2json.convert(args.filepath)
+    else:
+        doc = json.load(args.filepath)
 
-    # Get directory/file names
+    # Call stored procedure to insert interview
+    with conn.cursor() as cur:
+        cur.execute('CALL interview_insert(%(id)s, %(doc)s);', {
+            'id': args.id,
+            'doc': doc
+        })
+        cur.close()
 
-    # close connection
+    # Commit and close database connection
+    conn.commit()
     conn.close()
