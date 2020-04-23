@@ -20,7 +20,7 @@ COPY ./requirements.txt /opt/app/requirements.txt
 RUN pip3 install --upgrade --force-reinstall -r /opt/app/requirements.txt
 
 # Download NLTK resources
-RUN python3 -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); nltk.download('rslp'); nltk.download('averaged_perceptron_tagger'); nltk.download('maxent_ne_chunker'); nltk.download('words')"
+RUN python3 -c "import nltk; dir='/usr/share/nltk_data' ;nltk.download('punkt', dir); nltk.download('stopwords', dir); nltk.download('rslp', dir); nltk.download('averaged_perceptron_tagger', dir); nltk.download('maxent_ne_chunker', dir); nltk.download('words', dir)"
 
 # Run the rest of the commands as the ``postgres`` user created by the ``postgresql-11`` package when it was ``apt-get installed``
 USER postgres
