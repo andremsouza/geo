@@ -18,7 +18,7 @@ RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ buster-pgdg main" > /etc/
 RUN apt-get update && apt-get install -y build-essential tar gzip bzip2 zlib1g readline-common postgresql-11 postgresql-client-11 libpq-dev
 
 # Install python, pip and package requirements
-RUN apt-get update && apt-get install -y python3 python3-pip postgresql-plpython3-11
+RUN apt-get update && apt-get install -y python3 python3-dev python3-pip postgresql-plpython3-11
 COPY ./requirements.txt /opt/app/requirements.txt
 RUN pip3 install --upgrade --force-reinstall -r /opt/app/requirements.txt
 
