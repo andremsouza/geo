@@ -3,6 +3,9 @@
 # Using debian 10 (buster) as base image
 FROM debian:buster
 
+# Set maintainer label
+LABEL maintainer="André Moreira Souza <msouza.andre@hotmail.com>"
+
 # Import repository signing key, and update package lists
 RUN apt-get update && apt-get install -y apt-utils
 RUN apt-get update && apt-get install -y wget curl ca-certificates gnupg
