@@ -19,7 +19,7 @@ except Exception as e:  # If no config.py, define Object with empty attributes
 
     config = Object()
     config.HOSTNAME = ''
-    config.PORT = ''
+    config.PORT = -1
     config.DBNAME = ''
     config.USERNAME = ''
     config.PASSWORD = ''
@@ -92,7 +92,7 @@ def generate_argparser():
                         '--port',
                         action='store',
                         default=config.PORT,
-                        type=str,
+                        type=int,
                         required=False,
                         help='database server port ' + '(default=config.PORT)',
                         metavar='PORT',
