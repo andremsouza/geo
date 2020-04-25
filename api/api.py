@@ -1,36 +1,141 @@
-"""TODO: Extend documentation."""
+"""Flask application for connection to GEO database. Use -h for more help."""
 import argparse
 import re
 
 import flask
 import flask_httpauth
 import flask_restful
+import getpass
 import nltk
 import psycopg2
 import psycopg2.errors
 import psycopg2.pool
 import werkzeug.routing
 
-import config
-
-# Setting up nltk resources and database connection pool
-nltk.download('stopwords')
 try:
-    postgresql_pool = psycopg2.pool.SimpleConnectionPool(
-        config.MIN_CONNECTIONS,
-        config.MAX_CONNECTIONS,
-        dbname=config.DBNAME,
-        user=config.USER,
-        password=config.PASSWORD,
-        host=config.HOST,
-        port=config.PORT)
-    if postgresql_pool:
-        print("Connection pool created successfully")
-except (Exception, psycopg2.Error) as e:
-    print("Error while connecting to database: ", e)
-    exit(-1)
+    import config  # Try to import attributes from config.py
+except Exception as e:  # If no config.py, define Object with empty attributes
+    print('Warning: No config.py found. ' +
+          'Using empty values for non-provided connection attributes. ' +
+          str(e))
+    import passlib  # for default pwd_context
 
-# Defining int_list for batch GET requests
+    class Object(object):
+        """Dummy class for config attributes."""
+        pass
+
+    config = Object()
+    config.MIN_CONNECTIONS = -1
+    config.MAX_CONNECTIONS = -1
+    config.HOSTNAME = ''
+    config.PORT = -1
+    config.DBNAME = ''
+    config.USERNAME = ''
+    config.PASSWORD = ''
+    config.pwd_context = passlib.context.CryptContext(
+        schemes=["pbkdf2_sha256"], deprecated="auto")
+
+
+class PasswordPromptAction(argparse.Action):
+    """Custom class for argparse.Action for password prompt with getpass."""
+    def __init__(self,
+                 option_strings,
+                 dest=None,
+                 nargs=0,
+                 default=None,
+                 required=False,
+                 type=None,
+                 metavar=None,
+                 help=None):
+        super(PasswordPromptAction,
+              self).__init__(option_strings=option_strings,
+                             dest=dest,
+                             nargs=nargs,
+                             default=default,
+                             required=required,
+                             metavar=metavar,
+                             type=type,
+                             help=help)
+
+    def __call__(self, parser, args, values, option_string=None):
+        password = getpass.getpass()
+        setattr(args, self.dest, password)
+
+
+def generate_argparser():
+    """Return ArgumentParser object for database connection."""
+    parser = argparse.ArgumentParser(
+        description='Flask application for connection to GEO database.',
+        epilog='Report bugs to <https://github.com/andremsouza/ic-geo>')
+    parser.add_argument('-H',
+                        '--host',
+                        action='store',
+                        default=config.HOSTNAME,
+                        type=str,
+                        required=False,
+                        help='database server host or socket directory ' +
+                        '(default=config.HOSTNAME)',
+                        metavar='HOSTNAME',
+                        dest='hostname')
+    parser.add_argument('-p',
+                        '--port',
+                        action='store',
+                        default=config.PORT,
+                        type=int,
+                        required=False,
+                        help='database server port ' + '(default=config.PORT)',
+                        metavar='PORT',
+                        dest='port')
+    parser.add_argument('-d',
+                        '--dbname',
+                        action='store',
+                        default=config.DBNAME,
+                        type=str,
+                        required=False,
+                        help='database name to connect to ' +
+                        '(default=config.DBNAME)',
+                        metavar='DBNAME',
+                        dest='dbname')
+    parser.add_argument('-u',
+                        '--username',
+                        action='store',
+                        default=config.USERNAME,
+                        type=str,
+                        required=False,
+                        help='database user name ' +
+                        '(default=config.USERNAME)',
+                        metavar='USERNAME',
+                        dest='username')
+    parser.add_argument('--password',
+                        action=PasswordPromptAction,
+                        default=config.PASSWORD,
+                        type=str,
+                        required=False,
+                        help='password prompt ' + '(default=config.PASSWORD)',
+                        metavar='',
+                        dest='password')
+    parser.add_argument('--min-connections',
+                        action='store',
+                        default=config.MIN_CONNECTIONS,
+                        type=int,
+                        required=False,
+                        help='minimum number of connections in pool' +
+                        '(default=config.MIN_CONNECTIONS)',
+                        metavar='MIN-CONNECTIONS',
+                        dest='min_connections')
+    parser.add_argument('--max-connections',
+                        action='store',
+                        default=config.MAX_CONNECTIONS,
+                        type=int,
+                        required=False,
+                        help='maximum number of connections in pool' +
+                        '(default=config.MAX_CONNECTIONS)',
+                        metavar='MAX-CONNECTIONS',
+                        dest='max_connections')
+    parser.add_argument("--debug",
+                        action="store_true",
+                        help="Activate debug mode for Flask")
+    return parser
 
 
 class IntListConverter(werkzeug.routing.BaseConverter):
@@ -67,14 +172,37 @@ class IntListConverter(werkzeug.routing.BaseConverter):
         return ','.join(str(i) for i in value)
 
 
-# Initializing app and api
+# Main script #1
+if __name__ == "__main__":
+    # Parse command line arguments
+    parser = generate_argparser()
+    args = parser.parse_args()
 
-app = flask.Flask(__name__)
-app.url_map.converters['int_list'] = IntListConverter
-api = flask_restful.Api(app)
-auth = flask_httpauth.HTTPBasicAuth()
+    # defining pwd_context from passlib
+    pwd_context = config.pwd_context
 
-# Defining authentication functions
+    # Setting up nltk resources and database connection pool
+    nltk.download('stopwords')
+    try:
+        postgresql_pool = psycopg2.pool.SimpleConnectionPool(
+            args.min_connections,
+            args.max_connections,
+            dbname=args.dbname,
+            user=args.username,
+            password=args.password,
+            host=args.hostname,
+            port=args.port)
+        if postgresql_pool:
+            print("Connection pool created successfully")
+    except (Exception, psycopg2.Error) as e:
+        print("Error while connecting to database: ", e)
+        raise
+
+    # Initializing app and api
+    app = flask.Flask(__name__)
+    app.url_map.converters['int_list'] = IntListConverter
+    api = flask_restful.Api(app)
+    auth = flask_httpauth.HTTPBasicAuth()
 
 
 @auth.verify_password
@@ -144,11 +272,11 @@ class Users(flask_restful.Resource):
                 "authorization:[username, password]\n",
             }, 400
         try:
-            conn = psycopg2.connect(dbname=config.DBNAME,
+            conn = psycopg2.connect(dbname=args.dbname,
                                     user=db_username,
                                     password=db_password,
-                                    host=config.HOST,
-                                    port=config.PORT)
+                                    host=args.hostname,
+                                    port=args.port)
             with conn.cursor() as cur:
                 cur.execute(
                     """INSERT INTO api_users
@@ -247,11 +375,11 @@ class Users(flask_restful.Resource):
                 "authorization:[username, password]",
             }, 400
         try:
-            conn = psycopg2.connect(dbname=config.DBNAME,
+            conn = psycopg2.connect(dbname=args.dbname,
                                     user=db_username,
                                     password=db_password,
-                                    host=config.HOST,
-                                    port=config.PORT)
+                                    host=args.hostname,
+                                    port=args.port)
             with conn.cursor() as cur:
                 cur.execute(
                     """DELETE FROM api_users WHERE username = %(username)s;""",
@@ -290,7 +418,6 @@ class InterviewAll(flask_restful.Resource):
     decorators = [auth.login_required]
 
     def get(self):
-        print(flask.request.authorization)
         try:
             conn = postgresql_pool.getconn()
             data = {}
@@ -760,34 +887,29 @@ class InterviewSearchMeta(flask_restful.Resource):
         return data
 
 
-# Adding resources to api
-api.add_resource(Users, '/users')
-api.add_resource(InterviewAll, '/interviews/all')
-api.add_resource(InterviewAllText, '/interviews/all/text')
-api.add_resource(InterviewAllQuestions, '/interviews/all/questions')
-api.add_resource(InterviewAllAnswers, '/interviews/all/answers')
-api.add_resource(InterviewAllMeta, '/interviews/all/meta')
-api.add_resource(InterviewAny, '/interviews/<int_list:ids>')
-api.add_resource(InterviewAnyText, '/interviews/<int_list:ids>/text')
-api.add_resource(InterviewAnyQuestions, '/interviews/<int_list:ids>/questions')
-api.add_resource(InterviewAnyAnswers, '/interviews/<int_list:ids>/answers')
-api.add_resource(InterviewAnyMeta, '/interviews/<int_list:ids>/meta')
-api.add_resource(InterviewSearch, '/interviews/<string:search_string>')
-api.add_resource(InterviewSearchText,
-                 '/interviews/<string:search_string>/text')
-api.add_resource(InterviewSearchQuestions,
-                 '/interviews/<string:search_string>/questions')
-api.add_resource(InterviewSearchAnswers,
-                 '/interviews/<string:search_string>/answers')
-api.add_resource(InterviewSearchMeta,
-                 '/interviews/<string:search_string>/meta')
-
-# Main script
+# Main script #2
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-d",
-                        "--debug",
-                        help="Activate debug mode for Flask",
-                        action="store_true")
-    args = parser.parse_args()
-    app.run(debug=args.verbose, ssl_context='adhoc')
+    # Adding resources to api
+    api.add_resource(Users, '/users')
+    api.add_resource(InterviewAll, '/interviews/all')
+    api.add_resource(InterviewAllText, '/interviews/all/text')
+    api.add_resource(InterviewAllQuestions, '/interviews/all/questions')
+    api.add_resource(InterviewAllAnswers, '/interviews/all/answers')
+    api.add_resource(InterviewAllMeta, '/interviews/all/meta')
+    api.add_resource(InterviewAny, '/interviews/<int_list:ids>')
+    api.add_resource(InterviewAnyText, '/interviews/<int_list:ids>/text')
+    api.add_resource(InterviewAnyQuestions,
+                     '/interviews/<int_list:ids>/questions')
+    api.add_resource(InterviewAnyAnswers, '/interviews/<int_list:ids>/answers')
+    api.add_resource(InterviewAnyMeta, '/interviews/<int_list:ids>/meta')
+    api.add_resource(InterviewSearch, '/interviews/<string:search_string>')
+    api.add_resource(InterviewSearchText,
+                     '/interviews/<string:search_string>/text')
+    api.add_resource(InterviewSearchQuestions,
+                     '/interviews/<string:search_string>/questions')
+    api.add_resource(InterviewSearchAnswers,
+                     '/interviews/<string:search_string>/answers')
+    api.add_resource(InterviewSearchMeta,
+                     '/interviews/<string:search_string>/meta')
+    # TODO: configure ssl_context for secure (https) connections
+    app.run(debug=args.debug, ssl_context='adhoc')
