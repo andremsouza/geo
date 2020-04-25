@@ -194,8 +194,8 @@ if __name__ == "__main__":
             port=args.port)
         if postgresql_pool:
             print("Connection pool created successfully")
-    except (Exception, psycopg2.Error) as e:
-        print("Error while connecting to database: ", e)
+    except (Exception, psycopg2.Error):
+        print("Error while connecting to database: ")
         raise
 
     # Initializing app and api
