@@ -6,19 +6,22 @@ FROM debian:buster
 # Set maintainer label
 LABEL maintainer="André Moreira Souza <msouza.andre@hotmail.com>"
 
+# Update packages
+RUN apt-get update -y && apt-get upgrade -y
+
 # Import repository signing key, and update package lists
-RUN apt-get update && apt-get install -y apt-utils
-RUN apt-get update && apt-get install -y wget curl ca-certificates gnupg
+RUN apt-get install -y apt-utils
+RUN apt-get install -y wget curl ca-certificates gnupg
 RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 
 # Add PostgreSQL repository
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ buster-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 
 # Install postgresql-11
-RUN apt-get update && apt-get install -y build-essential tar gzip bzip2 zlib1g readline-common postgresql-11 postgresql-client-11 libpq-dev
+RUN apt-get install -y build-essential tar gzip bzip2 zlib1g readline-common postgresql-11 postgresql-client-11 libpq-dev
 
 # Install python, pip and package requirements
-RUN apt-get update && apt-get install -y python3 python3-dev python3-pip postgresql-plpython3-11
+RUN apt-get install -y python3 python3-dev python3-pip postgresql-plpython3-11
 COPY ./requirements.txt /opt/app/requirements.txt
 RUN pip3 install --upgrade --force-reinstall -r /opt/app/requirements.txt
 
