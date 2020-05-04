@@ -912,4 +912,4 @@ if __name__ == "__main__":
     api.add_resource(InterviewSearchMeta,
                      '/interviews/<string:search_string>/meta')
     # TODO: configure ssl_context for secure (https) connections
-    app.run(debug=args.debug, ssl_context='adhoc')
+    app.run(debug=args.debug)
