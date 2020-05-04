@@ -201,33 +201,34 @@ for token in tokens['answers']:
             stemmer.stem(token), 0) + meta['answers']['bow'][token]
 
 # Adding recognized named entities to metadata
-meta['text']['ne'] = [
-    nltk.chunk.ne_chunk(
-        i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
-            nltk.tokenize.word_tokenize(sent, language='portuguese')
-            for sent in nltk.tokenize.sent_tokenize(
-                '\n'.join(interview['text']), language='portuguese')
-        ],
-                                                        lang='por')
-]
-meta['questions']['ne'] = [
-    nltk.chunk.ne_chunk(
-        i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
-            nltk.tokenize.word_tokenize(sent, language='portuguese')
-            for sent in nltk.tokenize.sent_tokenize(
-                '\n'.join(interview['bold']), language='portuguese')
-        ],
-                                                        lang='por')
-]
-meta['answers']['ne'] = [
-    nltk.chunk.ne_chunk(
-        i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
-            nltk.tokenize.word_tokenize(sent, language='portuguese')
-            for sent in nltk.tokenize.sent_tokenize(
-                '\n'.join(interview['nonbold']), language='portuguese')
-        ],
-                                                        lang='por')
-]
+# ! Deactivated due to deprecated support to portuguese in NLTK 3.5
+# meta['text']['ne'] = [
+#     nltk.chunk.ne_chunk(
+#         i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
+#             nltk.tokenize.word_tokenize(sent, language='portuguese')
+#             for sent in nltk.tokenize.sent_tokenize(
+#                 '\n'.join(interview['text']), language='portuguese')
+#         ],
+#                                                         lang='por')
+# ]
+# meta['questions']['ne'] = [
+#     nltk.chunk.ne_chunk(
+#         i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
+#             nltk.tokenize.word_tokenize(sent, language='portuguese')
+#             for sent in nltk.tokenize.sent_tokenize(
+#                 '\n'.join(interview['bold']), language='portuguese')
+#         ],
+#                                                         lang='por')
+# ]
+# meta['answers']['ne'] = [
+#     nltk.chunk.ne_chunk(
+#         i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
+#             nltk.tokenize.word_tokenize(sent, language='portuguese')
+#             for sent in nltk.tokenize.sent_tokenize(
+#                 '\n'.join(interview['nonbold']), language='portuguese')
+#         ],
+#                                                         lang='por')
+# ]
 
 # Inserting data into the "interviews" table
 plan = plpy.prepare(

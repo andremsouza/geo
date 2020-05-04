@@ -10,29 +10,27 @@ import json
 import re
 import nltk.tokenize
 import nltk.corpus
-import nltk.tag
-import nltk.chunk
+# import nltk.tag
+# import nltk.chunk
 import nltk.stem
+import spacy
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('rslp')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('maxent_ne_chunker')
+# nltk.download('averaged_perceptron_tagger')
+# nltk.download('maxent_ne_chunker')
 nltk.download('words')
 # %% [markdown]
 # ## Setting up database connection
 # %%
-PASSWORD = None
+PASSWORD = 'api_admin'
 # %%
-# conn = psycopg2.connect(
-#     "host=%s port=%s dbname=%s user=%s password=%s" %
-#     ((str(input("Host: "))).strip(), (str(input("Port: "))).strip(),
-#      (str(input("DatabaseName: "))).strip(),
-#      (str(input("User: "))).strip(), getpass.getpass("Password: ")))
 conn = psycopg2.connect(host='localhost',
-                        dbname='icgeo',
-                        user='andre',
+                        port=32768,
+                        dbname='geo',
+                        user='api_admin',
                         password=PASSWORD)
+del PASSWORD
 cur = conn.cursor()
 cur.close()
 # %% [markdown]
@@ -42,12 +40,12 @@ cur.close()
 # %%
 # Get all input files and sort by athlete id
 input_files = sorted(
-    os.listdir('./database/source-files/GRD Pronto/Entrevistas Completas'),
+    os.listdir('./source-files/GRD Pronto/Entrevistas Completas'),
     key=lambda id: int(id[:2]))
 input_files_ids = [int(f[:2]) for f in input_files]
 input_files = [
-    os.getcwd() + '/database/source-files/GRD Pronto/Entrevistas Completas/' +
-    file for file in input_files
+    os.getcwd() + '/source-files/GRD Pronto/Entrevistas Completas/' + file
+    for file in input_files
 ]
 print("Interviews (number of documents = %d):" % len(input_files),
       input_files_ids,
@@ -288,7 +286,6 @@ for idx, x in enumerate(json_arr):
 
 # %%
 # Generating bag-of-words (stemmed or not) for insertion at the database
-# Recognizing named entities with NLTK's recommended algorithms
 stemmer = nltk.stem.rslp.RSLPStemmer()
 # stemmer = nltk.stem.snowball.SnowballStemmer('portuguese') # optional
 metas = []
@@ -322,36 +319,51 @@ for idx, x in enumerate(interviews_split):
         meta['answers']['bow_stemmed'][stemmer.stem(
             token)] = meta['answers']['bow_stemmed'].get(
                 stemmer.stem(token), 0) + meta['answers']['bow'][token]
-
-    # Adding recognized named entities to metadata
-    meta['text']['ne'] = [
-        nltk.chunk.ne_chunk(
-            i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
-                nltk.tokenize.word_tokenize(sent, language='portuguese')
-                for sent in nltk.tokenize.sent_tokenize(
-                    '\n'.join(json_arr[idx]['text']), language='portuguese')
-            ],
-                                                            lang='por')
-    ]
-    meta['questions']['ne'] = [
-        nltk.chunk.ne_chunk(
-            i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
-                nltk.tokenize.word_tokenize(sent, language='portuguese')
-                for sent in nltk.tokenize.sent_tokenize(
-                    '\n'.join(json_arr[idx]['bold']), language='portuguese')
-            ],
-                                                            lang='por')
-    ]
-    meta['answers']['ne'] = [
-        nltk.chunk.ne_chunk(
-            i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
-                nltk.tokenize.word_tokenize(sent, language='portuguese')
-                for sent in nltk.tokenize.sent_tokenize(
-                    '\n'.join(json_arr[idx]['nonbold']), language='portuguese')
-            ],
-                                                            lang='por')
-    ]
     metas.append(meta)
+
+# %%
+# Extacting named entities with spaCy
+nlp = spacy.load('pt_core_news_sm')
+docs = [nlp('\n'.join(doc['text'])) for doc in json_arr]
+for doc in docs:
+    print("Doc:")
+    spacy.displacy.render(doc, style="ent")
+# docs = [[nlp(para) for para in doc['text']] for doc in json_arr]
+
+# %%
+# ! Deactivated due to deprecated support to portuguese in NLTK 3.5
+# # Recognizing named entities with NLTK's recommended algorithms
+# for idx, x in enumerate(interviews_split):
+#     # Adding recognized named entities to metadata
+#     meta['text']['ne'] = [
+#         nltk.chunk.ne_chunk(i, binary=True).pformat()
+#         for i in nltk.tag.pos_tag_sents(
+#             [
+#                 nltk.tokenize.word_tokenize(sent, language='portuguese')
+#                 for sent in nltk.tokenize.sent_tokenize(
+#                     '\n'.join(json_arr[idx]['text']), language='portuguese')
+#                 # Recognizing named entities with NLTK
+#             ],
+#             lang='por')
+#     ]
+#     meta['questions']['ne'] = [
+#         nltk.chunk.ne_chunk(i, binary=True).pformat()
+#         for i in nltk.tag.pos_tag_sents([
+#             nltk.tokenize.word_tokenize(sent, language='portuguese')
+#             for sent in nltk.tokenize.sent_tokenize(
+#                 '\n'.join(json_arr[idx]['bold']), language='portuguese')
+#         ],
+#                                         lang='por')
+#     ]
+#     meta['answers']['ne'] = [
+#         nltk.chunk.ne_chunk(i, binary=True).pformat()
+#         for i in nltk.tag.pos_tag_sents([
+#             nltk.tokenize.word_tokenize(sent, language='portuguese')
+#             for sent in nltk.tokenize.sent_tokenize(
+#                 '\n'.join(json_arr[idx]['nonbold']), language='portuguese')
+#         ],
+#                                         lang='por')
+#     ]
 
 # %% [markdown]
 # ## Insertion of data into the database
@@ -384,22 +396,23 @@ except Exception as e:
 
 # %%
 cur = conn.cursor()
-cur.execute("""SELECT ID, tsvector_to_array(TO_TSVECTOR('portuguese', text))
-        FROM interviews
-        ORDER BY ID ASC;""")
-dbout = cur.fetchall()
-cur.close()
+# cur.execute("""SELECT ID, tsvector_to_array(TO_TSVECTOR('portuguese', text))
+#         FROM interviews
+#         ORDER BY ID ASC;""")
+# dbout = cur.fetchall()
+# cur.close()
 
 # %%
-# Differences between my extraction method and the one done by the DBMS
-for idx, i in enumerate(dbout):
-    print("ID: ", i[0])
-    print("Lista A (in postgres, not in metas):")
-    for j in i[1]:
-        if j not in list(metas[idx]['text']['bow_stemmed'].keys()):
-            print(j)
-    print("Lista B (in metas, not in postgres):")
-    for j in list(metas[idx]['text']['bow_stemmed'].keys()):
-        if j not in i[1]:
-            print(j)
-    print("")
+# # Differences between my extraction method and the one done by the DBMS
+# for idx, i in enumerate(dbout):
+#     print("ID: ", i[0])
+#     print("Lista A (in postgres, not in metas):")
+#     for j in i[1]:
+#         if j not in list(metas[idx]['text']['bow_stemmed'].keys()):
+#             print(j)
+#     print("Lista B (in metas, not in postgres):")
+#     for j in list(metas[idx]['text']['bow_stemmed'].keys()):
+#         if j not in i[1]:
+#             print(j)
+#     print("")
+# %%
