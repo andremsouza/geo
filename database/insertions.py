@@ -1,3 +1,4 @@
+# Script to test processing and insertion of interviews into PostgreSQL
 # %% [markdown]
 # # Interview processing and insertion into test database
 
@@ -17,8 +18,6 @@ import spacy
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('rslp')
-# nltk.download('averaged_perceptron_tagger')
-# nltk.download('maxent_ne_chunker')
 nltk.download('words')
 # %% [markdown]
 # ## Setting up database connection
@@ -322,13 +321,16 @@ for idx, x in enumerate(interviews_split):
     metas.append(meta)
 
 # %%
-# Extacting named entities with spaCy
+# Extracting named entities with spaCy
 nlp = spacy.load('pt_core_news_sm')
-docs = [nlp('\n'.join(doc['text'])) for doc in json_arr]
-for doc in docs:
-    print("Doc:")
-    spacy.displacy.render(doc, style="ent")
-# docs = [[nlp(para) for para in doc['text']] for doc in json_arr]
+for idx, meta in enumerate(metas):
+    doc = nlp('\n'.join(json_arr[idx]['text']))
+    meta['named_entities'] = [{
+        'text': ent.text,
+        'start_char': ent.start_char,
+        'end_char': ent.end_char,
+        'label': ent.label_
+    } for ent in doc.ents]
 
 # %%
 # ! Deactivated due to deprecated support to portuguese in NLTK 3.5

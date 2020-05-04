@@ -90,9 +90,8 @@ import json
 import re
 import nltk.tokenize
 import nltk.corpus
-import nltk.tag
-import nltk.chunk
 import nltk.stem
+import spacy
 
 # Convert JSON string to a dict variable
 interview = json.loads(docx)
@@ -200,35 +199,15 @@ for token in tokens['answers']:
         token)] = meta['answers']['bow_stemmed'].get(
             stemmer.stem(token), 0) + meta['answers']['bow'][token]
 
-# Adding recognized named entities to metadata
-# ! Deactivated due to deprecated support to portuguese in NLTK 3.5
-# meta['text']['ne'] = [
-#     nltk.chunk.ne_chunk(
-#         i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
-#             nltk.tokenize.word_tokenize(sent, language='portuguese')
-#             for sent in nltk.tokenize.sent_tokenize(
-#                 '\n'.join(interview['text']), language='portuguese')
-#         ],
-#                                                         lang='por')
-# ]
-# meta['questions']['ne'] = [
-#     nltk.chunk.ne_chunk(
-#         i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
-#             nltk.tokenize.word_tokenize(sent, language='portuguese')
-#             for sent in nltk.tokenize.sent_tokenize(
-#                 '\n'.join(interview['bold']), language='portuguese')
-#         ],
-#                                                         lang='por')
-# ]
-# meta['answers']['ne'] = [
-#     nltk.chunk.ne_chunk(
-#         i, binary=True).pformat() for i in nltk.tag.pos_tag_sents([
-#             nltk.tokenize.word_tokenize(sent, language='portuguese')
-#             for sent in nltk.tokenize.sent_tokenize(
-#                 '\n'.join(interview['nonbold']), language='portuguese')
-#         ],
-#                                                         lang='por')
-# ]
+# Extracting named entities with spaCy
+nlp = spacy.load('pt_core_news_sm')
+doc = nlp('\n'.join(json_arr[idx]['text']))
+meta['named_entities'] = [{
+    'text': ent.text,
+    'start_char': ent.start_char,
+    'end_char': ent.end_char,
+    'label': ent.label_
+} for ent in doc.ents]
 
 # Inserting data into the "interviews" table
 plan = plpy.prepare(
