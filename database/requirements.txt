@@ -1,3 +1,4 @@
 docx2json
 nltk
 psycopg2
+spacy
