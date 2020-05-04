@@ -182,7 +182,9 @@ if __name__ == "__main__":
     pwd_context = config.pwd_context
 
     # Setting up nltk resources and database connection pool
+    print("Downloading resources from NLTK...")
     nltk.download('stopwords')
+    print("Establishing connection pool to database...")
     try:
         postgresql_pool = psycopg2.pool.SimpleConnectionPool(
             args.min_connections,
@@ -199,6 +201,7 @@ if __name__ == "__main__":
         raise
 
     # Initializing app and api
+    print("Initializing Flask application...")
     app = flask.Flask(__name__)
     app.url_map.converters['int_list'] = IntListConverter
     api = flask_restful.Api(app)
