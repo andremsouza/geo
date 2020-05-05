@@ -737,12 +737,18 @@ class InterviewSearch(flask_restful.Resource):
             data = {}
             with conn.cursor() as cur:
                 cur.execute(
-                    """SELECT id, text, questions, answers, meta
+                    """SELECT id, text, questions, answers, meta,
+                            ts_rank_cd(tstext,
+                                       websearch_to_tsquery('portuguese',
+                                                            %(search_string)s),
+                                        1|4|32)
+                                as rank
                         FROM interviews
                         WHERE tstext @@
                             websearch_to_tsquery('portuguese',
                                                  %(search_string)s)
-                        ORDER BY id;""", {"search_string": search_string})
+                        ORDER BY rank DESC;""",
+                    {"search_string": search_string})
                 data['search_string'] = search_string
                 data['row_count'] = cur.rowcount
                 data['column_names'] = [desc[0] for desc in cur.description]
@@ -771,11 +777,18 @@ class InterviewSearchText(flask_restful.Resource):
             data = {}
             with conn.cursor() as cur:
                 cur.execute(
-                    """SELECT id, text FROM interviews
+                    """SELECT id, text,
+                            ts_rank_cd(tstext,
+                                       websearch_to_tsquery('portuguese',
+                                                            %(search_string)s),
+                                        1|4|32)
+                                as rank
+                        FROM interviews
                         WHERE tstext @@
                             websearch_to_tsquery('portuguese',
                                                  %(search_string)s)
-                        ORDER BY id;""", {"search_string": search_string})
+                        ORDER BY rank DESC;""",
+                    {"search_string": search_string})
                 data['search_string'] = search_string
                 data['row_count'] = cur.rowcount
                 data['column_names'] = [desc[0] for desc in cur.description]
@@ -804,11 +817,18 @@ class InterviewSearchQuestions(flask_restful.Resource):
             data = {}
             with conn.cursor() as cur:
                 cur.execute(
-                    """SELECT id, questions FROM interviews
+                    """SELECT id, questions,
+                            ts_rank_cd(tstext,
+                                       websearch_to_tsquery('portuguese',
+                                                            %(search_string)s),
+                                        1|4|32)
+                                as rank
+                        FROM interviews
                         WHERE tstext @@
                             websearch_to_tsquery('portuguese',
                                                  %(search_string)s)
-                        ORDER BY id;""", {"search_string": search_string})
+                        ORDER BY rank DESC;""",
+                    {"search_string": search_string})
                 data['search_string'] = search_string
                 data['row_count'] = cur.rowcount
                 data['column_names'] = [desc[0] for desc in cur.description]
@@ -837,11 +857,18 @@ class InterviewSearchAnswers(flask_restful.Resource):
             data = {}
             with conn.cursor() as cur:
                 cur.execute(
-                    """SELECT id, answers FROM interviews
+                    """SELECT id, answers,
+                            ts_rank_cd(tstext,
+                                       websearch_to_tsquery('portuguese',
+                                                            %(search_string)s),
+                                        1|4|32)
+                                as rank
+                        FROM interviews
                         WHERE tstext @@
                             websearch_to_tsquery('portuguese',
                                                  %(search_string)s)
-                        ORDER BY id;""", {"search_string": search_string})
+                        ORDER BY rank DESC;""",
+                    {"search_string": search_string})
                 data['search_string'] = search_string
                 data['row_count'] = cur.rowcount
                 data['column_names'] = [desc[0] for desc in cur.description]
@@ -870,11 +897,18 @@ class InterviewSearchMeta(flask_restful.Resource):
             data = {}
             with conn.cursor() as cur:
                 cur.execute(
-                    """SELECT id, meta FROM interviews
+                    """SELECT id, meta,
+                            ts_rank_cd(tstext,
+                                       websearch_to_tsquery('portuguese',
+                                                            %(search_string)s),
+                                        1|4|32)
+                                as rank
+                        FROM interviews
                         WHERE tstext @@
                             websearch_to_tsquery('portuguese',
                                                  %(search_string)s)
-                        ORDER BY id;""", {"search_string": search_string})
+                        ORDER BY rank DESC;""",
+                    {"search_string": search_string})
                 data['search_string'] = search_string
                 data['row_count'] = cur.rowcount
                 data['column_names'] = [desc[0] for desc in cur.description]
