@@ -1,5 +1,5 @@
 HOSTNAME = 'localhost'
-PORT = 5432
+PORT = 32768
 DBNAME = 'geo'
 USERNAME = 'api_admin'
 PASSWORD = 'api_admin'
