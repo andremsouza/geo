@@ -4,32 +4,49 @@
 
 # %%
 import psycopg2
-# import getpass
 import os
 import docx2json
 import json
 import re
+import random
 import nltk.tokenize
 import nltk.corpus
-# import nltk.tag
-# import nltk.chunk
 import nltk.stem
 import spacy
+
+try:
+    import config  # Try to import attributes from config.py
+except Exception as e:  # If no config.py, define Object with empty attributes
+    print('Warning: No config.py found. ' +
+          'Using empty values for non-provided connection attributes. ' +
+          str(e))
+
+    class Object(object):
+        """Dummy class for config attributes."""
+        pass
+
+    config = Object()
+    config.HOSTNAME = ''
+    config.PORT = -1
+    config.DBNAME = ''
+    config.USERNAME = ''
+    config.PASSWORD = ''
+
+# %%
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('rslp')
 nltk.download('words')
+
 # %% [markdown]
 # ## Setting up database connection
+
 # %%
-PASSWORD = 'api_admin'
-# %%
-conn = psycopg2.connect(host='localhost',
-                        port=32768,
-                        dbname='geo',
-                        user='api_admin',
-                        password=PASSWORD)
-del PASSWORD
+conn = psycopg2.connect(host=config.HOSTNAME,
+                        port=config.PORT,
+                        dbname=config.DBNAME,
+                        user=config.USERNAME,
+                        password=config.PASSWORD)
 cur = conn.cursor()
 cur.close()
 # %% [markdown]
@@ -332,41 +349,6 @@ for idx, meta in enumerate(metas):
         'label': ent.label_
     } for ent in doc.ents]
 
-# %%
-# ! Deactivated due to deprecated support to portuguese in NLTK 3.5
-# # Recognizing named entities with NLTK's recommended algorithms
-# for idx, x in enumerate(interviews_split):
-#     # Adding recognized named entities to metadata
-#     meta['text']['ne'] = [
-#         nltk.chunk.ne_chunk(i, binary=True).pformat()
-#         for i in nltk.tag.pos_tag_sents(
-#             [
-#                 nltk.tokenize.word_tokenize(sent, language='portuguese')
-#                 for sent in nltk.tokenize.sent_tokenize(
-#                     '\n'.join(json_arr[idx]['text']), language='portuguese')
-#                 # Recognizing named entities with NLTK
-#             ],
-#             lang='por')
-#     ]
-#     meta['questions']['ne'] = [
-#         nltk.chunk.ne_chunk(i, binary=True).pformat()
-#         for i in nltk.tag.pos_tag_sents([
-#             nltk.tokenize.word_tokenize(sent, language='portuguese')
-#             for sent in nltk.tokenize.sent_tokenize(
-#                 '\n'.join(json_arr[idx]['bold']), language='portuguese')
-#         ],
-#                                         lang='por')
-#     ]
-#     meta['answers']['ne'] = [
-#         nltk.chunk.ne_chunk(i, binary=True).pformat()
-#         for i in nltk.tag.pos_tag_sents([
-#             nltk.tokenize.word_tokenize(sent, language='portuguese')
-#             for sent in nltk.tokenize.sent_tokenize(
-#                 '\n'.join(json_arr[idx]['nonbold']), language='portuguese')
-#         ],
-#                                         lang='por')
-#     ]
-
 # %% [markdown]
 # ## Insertion of data into the database
 
@@ -392,29 +374,48 @@ except Exception as e:
     conn.rollback()
 
 # %% [markdown]
-# ## Setting up database connection for performance testing
-# %% [markdown]
-# ## Testing full-text search tools and comparing META information
+# ## Making an additional number of insertions, for tests with a high number of rows
+
+# %%
+num_iterations = 10000
+try:
+    cur = conn.cursor()
+    for i in range(num_iterations):
+        idx = random.randint(0, len(input_files_ids) - 1)
+        data = json_arr[idx]
+        cur.execute(
+            """INSERT INTO interviews (id, text, questions, answers, meta)
+                VALUES
+                    (%(id)s, %(texto)s, %(perguntas)s, %(respostas)s, %(meta)s)
+                ON CONFLICT DO NOTHING;""", {
+                'id': 100 + i,
+                'texto': '\n'.join(data['text']),
+                'perguntas': data['bold'],
+                'respostas': data['nonbold'],
+                'meta': json.dumps(metas[idx])
+            })
+    conn.commit()
+    cur.close()
+except Exception as e:
+    print(e)
+    conn.rollback()
 
 # %%
 cur = conn.cursor()
-# cur.execute("""SELECT ID, tsvector_to_array(TO_TSVECTOR('portuguese', text))
-#         FROM interviews
-#         ORDER BY ID ASC;""")
-# dbout = cur.fetchall()
-# cur.close()
+cur.execute("""SELECT COUNT(*) FROM INTERVIEWS;""")
+print(cur.fetchall())
+cur.close()
+
+# %% [markdown]
+# ## Updating statistics for index usage
 
 # %%
-# # Differences between my extraction method and the one done by the DBMS
-# for idx, i in enumerate(dbout):
-#     print("ID: ", i[0])
-#     print("Lista A (in postgres, not in metas):")
-#     for j in i[1]:
-#         if j not in list(metas[idx]['text']['bow_stemmed'].keys()):
-#             print(j)
-#     print("Lista B (in metas, not in postgres):")
-#     for j in list(metas[idx]['text']['bow_stemmed'].keys()):
-#         if j not in i[1]:
-#             print(j)
-#     print("")
+conn.rollback()
+conn.set_session(autocommit=True)
+cur = conn.cursor()
+cur.execute("""VACUUM ANALYZE interviews;""")
+conn.commit()
+cur.close()
+conn.set_session(autocommit=False)
+
 # %%
