@@ -462,15 +462,26 @@ rowm = [i / 1024 for i in rowk]
 aux = [round(i, 3) for i in rowm[0::2]]
 aux.append(sum(aux))
 print('Total column size (MB):')
-print('id\ttext\tquestions\tanswers\tmeta\ttstext\ttsquestions\ttsanswers')
+print(
+    'id\ttext\tquestions\tanswers\tmeta\ttstext\ttsquestions\ttsanswers\tTotal'
+)
 print(*aux, sep='\t')
 
 aux = [round(i, 3) for i in rowk[1::2]]
 aux.append(sum(aux))
 print('Average column size per tuple (KB):')
-print('id\ttext\tquestions\tanswers\tmeta\ttstext\ttsquestions\ttsanswers')
+print(
+    'id\ttext\tquestions\tanswers\tmeta\ttstext\ttsquestions\ttsanswers\tTotal'
+)
 print(*aux, sep='\t')
 
 # %%
 # Analyze Index size
+cur = conn.cursor()
+cur.execute("""Select pg_indexes_size('interviews');""")
+result = cur.fetchall()
+print('Index size for interviews table (MB): ')
+print(result[0][0] / 1024 / 1024)
+cur.close()
+
 # %%
