@@ -419,3 +419,58 @@ cur.close()
 conn.set_session(autocommit=False)
 
 # %%
+# Get relation size
+cur = conn.cursor()
+cur.execute("""SELECT nspname || '.' || relname AS "relation",
+    pg_size_pretty(pg_total_relation_size(C.oid)) AS "total_size"
+  FROM pg_class C
+  LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
+  WHERE nspname NOT IN ('pg_catalog', 'information_schema')
+    AND C.relkind <> 'i'
+    AND nspname !~ '^pg_toast'
+  ORDER BY pg_total_relation_size(C.oid) DESC
+  LIMIT 20;""")
+result = cur.fetchall()
+print(*result, sep='\n')
+cur.close()
+
+# %%
+# Analyze column size for each column
+cur = conn.cursor()
+cur.execute("""select sum(pg_column_size(id)),
+                    avg(pg_column_size(id)),
+                    sum(pg_column_size(text)),
+                    avg(pg_column_size(text)),
+                    sum(pg_column_size(questions)),
+                    avg(pg_column_size(questions)),
+                    sum(pg_column_size(answers)),
+                    avg(pg_column_size(answers)),
+                    sum(pg_column_size(meta)),
+                    avg(pg_column_size(meta)),
+                    sum(pg_column_size(tstext)),
+                    avg(pg_column_size(tstext)),
+                    sum(pg_column_size(tsquestions)),
+                    avg(pg_column_size(tsquestions)),
+                    sum(pg_column_size(tsanswers)),
+                    avg(pg_column_size(tsanswers))
+                from interviews;""")
+result = cur.fetchall()
+cur.close()
+row = result[0]
+rowk = [i / 1024 for i in row]
+rowm = [i / 1024 for i in rowk]
+aux = [round(i, 3) for i in rowm[0::2]]
+aux.append(sum(aux))
+print('Total column size (MB):')
+print('id\ttext\tquestions\tanswers\tmeta\ttstext\ttsquestions\ttsanswers')
+print(*aux, sep='\t')
+
+aux = [round(i, 3) for i in rowk[1::2]]
+aux.append(sum(aux))
+print('Average column size per tuple (KB):')
+print('id\ttext\tquestions\tanswers\tmeta\ttstext\ttsquestions\ttsanswers')
+print(*aux, sep='\t')
+
+# %%
+# Analyze Index size
+# %%
