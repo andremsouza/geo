@@ -19,6 +19,15 @@ CREATE FUNCTION public.interviews_textarrays_update_trigger()
     end
 $BODY$;
 
+-- Table: public. athletes
+-- DROP TABLE public.athletes
+CREATE TABLE public.athletes (
+    id integer NOT NULL,
+    CONSTRAINT athletes_pkey PRIMARY KEY (id),
+    CONSTRAINT athletes_id_check CHECK (id > 0)
+);
+GRANT SELECT ON public.athletes TO api;
+GRANT ALL ON public.athletes TO api_admin;
 -- Table: public.interviews
 -- DROP TABLE public.interviews;
 CREATE TABLE public.interviews (
@@ -31,7 +40,8 @@ CREATE TABLE public.interviews (
     tsquestions tsvector NOT NULL,
     tsanswers tsvector NOT NULL,
     CONSTRAINT interviews_pkey PRIMARY KEY (id),
-    CONSTRAINT interviews_id_check CHECK (id > 0)
+    CONSTRAINT interviews_id_check CHECK (id > 0),
+    CONSTRAINT interviews_fkey_id FOREIGN KEY (id) REFERENCES athletes (id)
 );
 GRANT SELECT ON public.interviews TO api;
 GRANT ALL ON public.interviews TO api_admin;
