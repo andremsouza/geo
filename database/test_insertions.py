@@ -356,6 +356,8 @@ for idx, meta in enumerate(metas):
 try:
     cur = conn.cursor()
     for idx, data in enumerate(json_arr):
+        cur.execute("""INSERT INTO athletes (id) VALUES (%(id)s);""",
+                    {'id': input_files_ids[idx]})
         cur.execute(
             """INSERT INTO interviews (id, text, questions, answers, meta)
                 VALUES
@@ -383,6 +385,8 @@ try:
     for i in range(num_iterations):
         idx = random.randint(0, len(input_files_ids) - 1)
         data = json_arr[idx]
+        cur.execute("""INSERT INTO athletes (id) VALUES (%(id)s);""",
+                    {'id': 100 + i})
         cur.execute(
             """INSERT INTO interviews (id, text, questions, answers, meta)
                 VALUES
