@@ -1,4 +1,4 @@
-# Busca e mineração sobre grandes volumes de texto em SGBD relacional
+# Search and Mining of Large Volumes of Text in a Relational DBMS
 
 This repository contains the source code of a scientific initiation project developed between September 2018 and September 2019, which culminated on my final undergraduate project in the first semester of 2020. The project comprises a structure for the storage of data of Brazilian Olympic athletes, with an emphasis on the efficient recovery of textual data and metadata for text mining.
 
